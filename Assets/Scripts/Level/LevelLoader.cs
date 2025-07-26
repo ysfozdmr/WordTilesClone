@@ -1,98 +1,142 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class LevelLoader : MonoBehaviour
 {
-    [Tooltip("Yüklenmesi istenen levelin numarası. (Örn: 1 -> level_1.json)")]
     public int levelToLoad = 1;
 
-    private Transform levelContainer; // Oluşturulan tile'ları sahnede düzenli tutmak için.
+    // Unity Editor'da ayarlanabilecek ölçeklendirme ve ofset değerleri
+    [Header("Positioning Adjustments")]
+    [Tooltip("Adjusts the horizontal scale of the tile positions from JSON.")]
+    public float positionScaleX = 0.1f; // JSON'daki X koordinatlarını küçültmek için
+    [Tooltip("Adjusts the vertical scale of the tile positions from JSON.")]
+    public float positionScaleY = 0.1f; // JSON'daki Y koordinatlarını küçültmek için
+    [Tooltip("Adjusts the X offset for all tiles in Unity world space.")]
+    public float offsetX = 0f; // Tüm harfleri yatayda kaydırmak için
+    [Tooltip("Adjusts the Y offset for all tiles in Unity world space.")]
+    public float offsetY = 0f; // Tüm harfleri dikeyde kaydırmak için
+    [Tooltip("Adjusts the Z scale of the tile positions from JSON.")]
+    public float positionScaleZ = 0.01f; // Z koordinatlarını katmanlama için küçük tutmak için
 
-    void Start()
+    private Transform levelContainer;
+
+    [SerializeField] private GameObject letterPrefab;
+
+    private Dictionary<int, Letter> spawnedLetters;
+
+    private void Start()
     {
-        // Başlangıçta Inspector'da belirtilen leveli yükle.
         LoadLevel(levelToLoad);
     }
 
-    /// <summary>
-    /// Belirtilen numaraya sahip leveli yükler ve sahnede oluşturur.
-    /// </summary>
-    /// <param name="levelNumber">Yüklenecek levelin numarası.</param>
     public void LoadLevel(int levelNumber)
     {
-        // Önceki levelden kalan objeleri temizle
         ClearExistingLevel();
-
-        // Dosya adını dinamik olarak oluştur. Örn: "level_1"
+        
         string fileName = $"level_{levelNumber}";
-
-        // Belirtilen level dosyasını Resources klasöründen yükle.
-        TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
+        
+        // Resources klasöründen TextAsset olarak JSON dosyasını yükle
+        TextAsset jsonFile = Resources.Load<TextAsset>(fileName); //
 
         if (jsonFile != null)
         {
-            // JSON metnini string olarak al ve Level nesnesine dönüştür.
-            string jsonString = jsonFile.text;
-            Level levelData = JsonUtility.FromJson<Level>(jsonString);
-
-            // Verinin doğru yüklendiğini kontrol et ve leveli oluştur.
-            Debug.Log($"'{levelData.title}' başlıklı Level {levelNumber} yükleniyor...");
-            GenerateLevel(levelData);
+            string jsonString = jsonFile.text; //
+            Level levelData = JsonUtility.FromJson<Level>(jsonString); //
+            
+            Debug.Log($"'{levelData.title}' başlıklı Level {levelNumber} yükleniyor..."); //
+            GenerateLevel(levelData); //
         }
         else
         {
-            Debug.LogError($"{fileName}.json dosyası Assets/Resources klasöründe bulunamadı!");
+            Debug.LogError($"{fileName}.json dosyası Assets/Resources klasöründe bulunamadı!"); //
         }
     }
 
-    /// <summary>
-    /// Yüklenen level verisine göre oyun objelerini sahnede oluşturur.
-    /// </summary>
     private void GenerateLevel(Level levelData)
     {
-        // Tile objelerini sahnede düzenli tutmak için boş bir container obje oluştur.
-        levelContainer = new GameObject($"Level_{levelToLoad}_Container").transform;
+        levelContainer = new GameObject($"Level_{levelToLoad}_Container").transform; //
+        spawnedLetters = new Dictionary<int, Letter>(); // Initialize the dictionary
 
-        foreach (Tile tile in levelData.tiles)
+        // First pass: Create all letter objects and store them in the dictionary
+        foreach (Tile tile in levelData.tiles) //
         {
-            CreateTileObject(tile);
+            Letter letterComponent = CreateTileObject(tile); //
+            if (letterComponent != null) //
+            {
+                spawnedLetters.Add(letterComponent.id, letterComponent); //
+            }
+        }
+
+        // Second pass: Populate the 'blockedBy' list for each letter
+        foreach (Tile tile in levelData.tiles) //
+        {
+            foreach (int childId in tile.children) //
+            {
+                if (spawnedLetters.TryGetValue(childId, out Letter childLetter)) //
+                {
+                    childLetter.blockedBy.Add(tile.id); //
+                }
+                else
+                {
+                    Debug.LogWarning($"Child letter with ID {childId} not found for parent tile ID {tile.id}."); //
+                }
+            }
         }
     }
-
-    /// <summary>
-    /// Verilen tile bilgisine göre bir oyun objesi oluşturur.
-    /// </summary>
-    private void CreateTileObject(Tile tileData)
+    
+    private Letter CreateTileObject(Tile tileData)
     {
-        // Örnek: Basit bir GameObject ve TextMesh ile tile oluşturma.
-        // Daha gelişmiş bir sistem için prefab kullanmak daha iyidir.
-        GameObject tileObject = new GameObject($"Tile_{tileData.id}_{tileData.character}");
+        GameObject tileObject = Instantiate(letterPrefab); //
 
-        // Oluşturulan objeyi container'ın altına al ki hiyerarşi düzenli kalsın.
-        if (levelContainer != null)
+        tileObject.name = $"Tile_{tileData.id}_{tileData.character}"; //
+
+        if (levelContainer != null) //
         {
-            tileObject.transform.SetParent(levelContainer);
+            tileObject.transform.SetParent(levelContainer); //
         }
 
-        // Pozisyonu JSON verisinden ayarla
-        tileObject.transform.position = new Vector3(tileData.position.x, tileData.position.y, tileData.position.z);
+        // JSON'daki pozisyonları ölçeklendir ve kaydır
+        float newX = tileData.position.x * positionScaleX + offsetX;
+        float newY = tileData.position.y * positionScaleY + offsetY;
+        float newZ = tileData.position.z * positionScaleZ; // Z koordinatını da ölçeklendir
 
-        // Harfi göstermek için bir TextMesh ekle
-        TextMesh textMesh = tileObject.AddComponent<TextMesh>();
-        textMesh.text = tileData.character;
-        textMesh.anchor = TextAnchor.MiddleCenter;
-        textMesh.alignment = TextAlignment.Center;
-        textMesh.fontSize = 20;
-        textMesh.characterSize = 1f; // Boyutu sahnenize göre ayarlayın
+        tileObject.transform.position = new Vector3(newX, newY, newZ); //
+        
+        Letter letterComponent = tileObject.GetComponent<Letter>(); //
+
+        if (letterComponent != null) //
+        {
+            letterComponent.id = tileData.id; //
+            letterComponent.children = tileData.children; // Still keep children for consistency
+            letterComponent.SetLetter(tileData.character); //
+
+            //TODO:fix it
+            // Set initial state based on children count
+            if (tileData.children.Length == 0) //
+            {
+                letterComponent.SetState(true); // If no children, it's face up
+            }
+            else
+            {
+                letterComponent.SetState(false); // If has children, it's face down (concealed)
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"Letter component not found on {tileObject.name}. Character and points might not be displayed."); //
+        }
+        return letterComponent; // Return the Letter component
     }
 
-    /// <summary>
-    /// Sahnede daha önceden oluşturulmuş level objelerini siler.
-    /// </summary>
     private void ClearExistingLevel()
     {
-        if (levelContainer != null)
+        if (levelContainer != null) //
         {
-            Destroy(levelContainer.gameObject);
+            Destroy(levelContainer.gameObject); //
+        }
+        if (spawnedLetters != null) //
+        {
+            spawnedLetters.Clear(); //
         }
     }
 }

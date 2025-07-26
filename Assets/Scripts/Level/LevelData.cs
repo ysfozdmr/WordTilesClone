@@ -1,14 +1,14 @@
 using UnityEngine;
 using System;
 
-[System.Serializable]
+[Serializable]
 public class Level
 {
     public string title;
     public Tile[] tiles;
 }
 
-[System.Serializable]
+[Serializable]
 public class Tile
 {
     public int id;
@@ -17,7 +17,7 @@ public class Tile
     public int[] children;
 }
 
-[System.Serializable]
+[Serializable]
 public class Position
 {
     public float x;
