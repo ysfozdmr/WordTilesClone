@@ -7,9 +7,9 @@ public class Letter : MonoBehaviour
 {
     public int id;
     public int[] children;
-    
+
     public List<int> blockedBy;
-    
+
     public Sprite frontSprite;
     public Sprite backSprite;
 
@@ -47,12 +47,12 @@ public class Letter : MonoBehaviour
             Debug.LogError("Bu objede SpriteRenderer bileşeni bulunamadı!", this);
         }
 
-        if (characterTextMesh == null) // Check if character text mesh is assigned
+        if (characterTextMesh == null)
         {
             Debug.LogError("Character TextMesh bileşeni bulunamadı!", this);
         }
 
-        if (pointTextMesh == null) // Check if point text mesh is assigned
+        if (pointTextMesh == null)
         {
             Debug.LogError("Point TextMesh bileşeni bulunamadı!", this);
         }
@@ -71,6 +71,22 @@ public class Letter : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.B))
         {
             Conceal();
+        }
+
+       
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            MoveTo(Vector3.zero, 1.0f);
+        }
+        
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            MoveTo(new Vector3(2, 2, 0), 0.3f);
+        }
+      
+        if (Input.GetKeyDown(KeyCode.U))
+        {
+            MoveTo(new Vector3(-2, -2, 0), 0.3f);
         }
     }
 
@@ -148,15 +164,42 @@ public class Letter : MonoBehaviour
 
         if (pointTextMesh != null)
         {
-            char upperChar = character.ToUpperInvariant()[0]; // Convert to uppercase for point lookup
+            char upperChar = character.ToUpperInvariant()[0];
             if (letterPoints.TryGetValue(upperChar, out int points))
             {
                 pointTextMesh.text = points.ToString();
             }
             else
             {
-                pointTextMesh.text = ""; // Or display "0" or "?" for unknown characters
+                pointTextMesh.text = "";
             }
         }
+    }
+
+    public void MoveTo(Vector3 targetPosition, float duration, float jumpHeight = 1f, float scaleDownFactor = 0.6f, float rotationAmount = 360f)
+    {
+        if (isAnimating)
+            return;
+
+        isAnimating = true;
+
+        Sequence moveSequence = DOTween.Sequence();
+
+        float jumpDuration = duration * 0.3f; 
+        moveSequence.Append(transform.DOMove(transform.position + Vector3.up * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Join(transform.DOScale(initialScale * scaleDownFactor, jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 4f), jumpDuration).SetEase(Ease.OutQuad)); 
+
+      
+        float moveDuration = duration * 0.7f; 
+        moveSequence.Append(transform.DOMove(targetPosition, moveDuration).SetEase(Ease.InOutSine));
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, rotationAmount), moveDuration, RotateMode.FastBeyond360).SetEase(Ease.InOutSine));
+        moveSequence.Join(transform.DOScale(initialScale, moveDuration).SetEase(Ease.OutBack));
+
+        moveSequence.OnComplete(() =>
+        {
+            isAnimating = false;
+            Debug.Log("Harf hedefe ulaştı: " + targetPosition + " Süre: " + duration + "s");
+        });
     }
 }
