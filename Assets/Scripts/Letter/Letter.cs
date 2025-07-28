@@ -1,7 +1,9 @@
+
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
 using System.Collections.Generic;
+using System; 
 
 public class Letter : MonoBehaviour
 {
@@ -19,11 +21,14 @@ public class Letter : MonoBehaviour
 
     [SerializeField] private SpriteRenderer spriteRenderer;
 
-    [SerializeField] private TextMeshProUGUI characterTextMesh;
+    [SerializeField] public TextMeshProUGUI characterTextMesh;
     [SerializeField] private TextMeshProUGUI pointTextMesh;
+
+    [SerializeField] private BoxCollider2D boxCollider2D;
 
     private bool isFaceUp = true;
     private bool isAnimating = false;
+    public bool isSelected; 
 
     private Vector3 initialScale;
 
@@ -39,6 +44,22 @@ public class Letter : MonoBehaviour
         { 'Q', 10 }, { 'Z', 10 }
     };
 
+    private SlotContainerManager slotContainerManager;
+
+    public static int GetPointsForCharacter(char character)
+    {
+        char upperChar = char.ToUpperInvariant(character);
+        if (letterPoints.TryGetValue(upperChar, out int points))
+        {
+            return points;
+        }
+        return 0;
+    }
+
+    public void SetSlotContainerManager(SlotContainerManager manager)
+    {
+        slotContainerManager = manager;
+    }
 
     private void Awake()
     {
@@ -57,36 +78,75 @@ public class Letter : MonoBehaviour
             Debug.LogError("Point TextMesh bileşeni bulunamadı!", this);
         }
 
+        if (boxCollider2D == null)
+        {
+            boxCollider2D = GetComponent<BoxCollider2D>();
+            if (boxCollider2D == null)
+            {
+                Debug.LogError("Bu objede BoxCollider2D bileşeni bulunamadı! Tıklama çalışmayabilir.", this);
+            }
+        }
+
         initialScale = transform.localScale;
         blockedBy = new List<int>();
+        isSelected = false; 
     }
 
-    private void Update()
+    private void OnMouseDown()
     {
-        if (Input.GetKeyDown(KeyCode.A))
+        if (!boxCollider2D.enabled || isAnimating) return;
+
+        if (isSelected) 
         {
-            Reveal();
+            if (slotContainerManager != null)
+            {
+                slotContainerManager.HandleLetterClickInSlot(this); 
+            }
+            else
+            {
+                Debug.LogError("SlotContainerManager referansı Letter'a atanmadı!");
+            }
+            return; 
         }
 
-        if (Input.GetKeyDown(KeyCode.B))
+        if (!isFaceUp)
         {
-            Conceal();
+            Debug.Log($"Harf {characterTextMesh.text} henüz açık değil, tıklanamaz.");
+            return;
         }
 
-       
-        if (Input.GetKeyDown(KeyCode.T))
+        if (blockedBy.Count > 0)
         {
-            MoveTo(Vector3.zero, 1.0f);
+            Debug.LogWarning($"Harf {characterTextMesh.text} henüz alınamaz, {blockedBy.Count} harf tarafından engelleniyor.");
+            return;
         }
-        
-        if (Input.GetKeyDown(KeyCode.Y))
+
+        if (slotContainerManager != null)
         {
-            MoveTo(new Vector3(2, 2, 0), 0.3f);
+            PlaceSelfInSlot();
         }
-      
-        if (Input.GetKeyDown(KeyCode.U))
+        else
         {
-            MoveTo(new Vector3(-2, -2, 0), 0.3f);
+            Debug.LogError("SlotContainerManager referansı Letter'a atanmadı!");
+        }
+    }
+
+    private void PlaceSelfInSlot()
+    {
+        Transform emptySlotTransform = slotContainerManager.GetEmptySlotTransform();
+        if (emptySlotTransform != null)
+        {
+            if (boxCollider2D != null) boxCollider2D.enabled = false;
+
+            MoveTo(emptySlotTransform.position, 0.5f, () => {
+                slotContainerManager.MarkSlotAsOccupied(emptySlotTransform, this);
+                isSelected = true;
+                if (boxCollider2D != null) boxCollider2D.enabled = true;
+            });
+        }
+        else
+        {
+            Debug.LogWarning("Hiç boş slot yok! Harf yerleştirilemedi.");
         }
     }
 
@@ -130,6 +190,10 @@ public class Letter : MonoBehaviour
                 spriteRenderer.sprite = backSprite;
                 contentCanvas.SetActive(false);
             }
+            if (boxCollider2D != null)
+            {
+                boxCollider2D.enabled = isFaceUp;
+            }
         });
 
         flipSequence.Append(transform.DORotate(Vector3.zero, flipDuration / 2f).SetEase(Ease.OutBack));
@@ -144,11 +208,13 @@ public class Letter : MonoBehaviour
         {
             spriteRenderer.sprite = frontSprite;
             contentCanvas.SetActive(true);
+            if (boxCollider2D != null) boxCollider2D.enabled = true;
         }
         else
         {
             spriteRenderer.sprite = backSprite;
             contentCanvas.SetActive(false);
+            if (boxCollider2D != null) boxCollider2D.enabled = false;
         }
 
         transform.rotation = Quaternion.identity;
@@ -176,22 +242,32 @@ public class Letter : MonoBehaviour
         }
     }
 
-    public void MoveTo(Vector3 targetPosition, float duration, float jumpHeight = 1f, float scaleDownFactor = 0.6f, float rotationAmount = 360f)
+    public void MoveTo(Vector3 targetPosition, float duration, Action onComplete = null, float jumpHeight = 1f, float scaleDownFactor = 0.6f, float rotationAmount = 360f)
     {
         if (isAnimating)
             return;
 
         isAnimating = true;
 
+        float directionX = 0f;
+        if (targetPosition.x > transform.position.x)
+        {
+            directionX = 1f;
+        }
+        else 
+        {
+            directionX = -1f;
+        }
+
         Sequence moveSequence = DOTween.Sequence();
 
-        float jumpDuration = duration * 0.3f; 
-        moveSequence.Append(transform.DOMove(transform.position + Vector3.up * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
+        float jumpDuration = duration * 0.3f;
+        moveSequence.Append(transform.DOMove(transform.position + new Vector3(directionX, 1, 0) * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
         moveSequence.Join(transform.DOScale(initialScale * scaleDownFactor, jumpDuration).SetEase(Ease.OutQuad));
-        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 4f), jumpDuration).SetEase(Ease.OutQuad)); 
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 6f), jumpDuration).SetEase(Ease.OutQuad));
 
-      
-        float moveDuration = duration * 0.7f; 
+
+        float moveDuration = duration * 0.7f;
         moveSequence.Append(transform.DOMove(targetPosition, moveDuration).SetEase(Ease.InOutSine));
         moveSequence.Join(transform.DORotate(new Vector3(0, 0, rotationAmount), moveDuration, RotateMode.FastBeyond360).SetEase(Ease.InOutSine));
         moveSequence.Join(transform.DOScale(initialScale, moveDuration).SetEase(Ease.OutBack));
@@ -199,7 +275,41 @@ public class Letter : MonoBehaviour
         moveSequence.OnComplete(() =>
         {
             isAnimating = false;
-            Debug.Log("Harf hedefe ulaştı: " + targetPosition + " Süre: " + duration + "s");
+            Debug.Log($"Harf {characterTextMesh.text} hedefe ulaştı: {targetPosition}");
+            onComplete?.Invoke();
         });
+    }
+
+    public void ReturnToOriginalPosition(Vector3 originalPos, Action onComplete = null)
+    {
+        isSelected = false;
+        if (boxCollider2D != null) boxCollider2D.enabled = false; 
+        MoveTo(originalPos, 0.5f, () => {
+            onComplete?.Invoke();
+        }, jumpHeight: 1f, scaleDownFactor: 1f, rotationAmount: 0f); 
+    }
+
+    public void OnParentLetterTaken(int parentId)
+    {
+        blockedBy.Remove(parentId);
+        if (blockedBy.Count == 0)
+        {
+            Reveal();
+            Debug.Log($"Harf {characterTextMesh.text} artık engellenmiyor ve tıklanabilir.");
+        }
+    }
+
+    public void OnParentLetterReturned(int parentId)
+    {
+        if (!blockedBy.Contains(parentId))
+        {
+            blockedBy.Add(parentId);
+        }
+      
+        if (isFaceUp)
+        {
+            Conceal();
+            Debug.Log($"Harf {characterTextMesh.text} tekrar engellendi ve gizlendi.");
+        }
     }
 }
