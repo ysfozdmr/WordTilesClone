@@ -136,6 +136,9 @@ public class Letter : MonoBehaviour
         Transform emptySlotTransform = slotContainerManager.GetEmptySlotTransform();
         if (emptySlotTransform != null)
         {
+            // Yeni eklenen kısım: SlotContainerManager'a harfin yerleştirilmekte olduğunu bildir
+            slotContainerManager.isPlacingLetter = true; // Bu satırı ekleyin
+
             if (boxCollider2D != null) boxCollider2D.enabled = false;
 
             MoveTo(emptySlotTransform.position, 0.5f, () => {
@@ -146,7 +149,7 @@ public class Letter : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Hiç boş slot yok! Harf yerleştirilemedi.");
+            Debug.LogWarning("Hiç boş slot yok! Harf yerleştirilemedi veya başka bir harf yerleştiriliyor.");
         }
     }
 
@@ -249,22 +252,12 @@ public class Letter : MonoBehaviour
 
         isAnimating = true;
 
-        float directionX = 0f;
-        if (targetPosition.x > transform.position.x)
-        {
-            directionX = 1f;
-        }
-        else 
-        {
-            directionX = -1f;
-        }
-
         Sequence moveSequence = DOTween.Sequence();
 
         float jumpDuration = duration * 0.3f;
-        moveSequence.Append(transform.DOMove(transform.position + new Vector3(directionX, 1, 0) * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Append(transform.DOMove(transform.position + new Vector3(-1, 1, 0) * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
         moveSequence.Join(transform.DOScale(initialScale * scaleDownFactor, jumpDuration).SetEase(Ease.OutQuad));
-        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 6f), jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 4f), jumpDuration).SetEase(Ease.OutQuad));
 
 
         float moveDuration = duration * 0.7f;
@@ -275,8 +268,8 @@ public class Letter : MonoBehaviour
         moveSequence.OnComplete(() =>
         {
             isAnimating = false;
-            Debug.Log($"Harf {characterTextMesh.text} hedefe ulaştı: {targetPosition}");
-            onComplete?.Invoke();
+            Debug.Log("Harf hedefe ulaştı: " + targetPosition + " Süre: " + duration + "s");
+            onComplete?.Invoke(); // Callback'i çağır
         });
     }
 
