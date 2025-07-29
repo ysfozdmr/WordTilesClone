@@ -1,4 +1,4 @@
-// UndoButtonUI.cs
+
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems; // IPointerDownHandler, IPointerUpHandler için gerekli
@@ -8,11 +8,11 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 {
     [SerializeField] private Button undoButton;
     [SerializeField] private SlotContainerManager slotContainerManager;
-    [SerializeField] private float holdDuration = 0.5f; // "Tümünü geri al"ı tetiklemek için basılı tutma süresi
+    [SerializeField] private float holdDuration = 0.5f; 
 
     private float pointerDownTimer = 0f;
     private bool isPointerDown = false;
-    private bool isHoldTriggered = false; // Basılı tutma sırasında birden fazla çağrıyı önlemek için
+    private bool isHoldTriggered = false; 
 
     private void Awake()
     {
@@ -27,9 +27,9 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
             pointerDownTimer += Time.deltaTime;
             if (pointerDownTimer >= holdDuration)
             {
-                // Basılı tutma algılandı, tümünü geri almayı tetikle
+
                 slotContainerManager.UndoAllLetters();
-                isHoldTriggered = true; // Tetiklendi olarak işaretle
+                isHoldTriggered = true; 
                 Debug.Log("Tümünü geri alma basılı tutma ile tetiklendi.");
             }
         }
@@ -39,29 +39,23 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     {
         isPointerDown = true;
         pointerDownTimer = 0f;
-        isHoldTriggered = false; // Yeni basış için sıfırla
+        isHoldTriggered = false;
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
         isPointerDown = false;
 
-        // Eğer basılı tutma tetiklenmediyse, bu bir tıklamadır
+        
         if (!isHoldTriggered)
         {
             slotContainerManager.UndoLastLetter();
             Debug.Log("Son harfi geri alma tıklama ile tetiklendi.");
         }
 
-        // Bir sonraki etkileşim için sıfırla
+    
         pointerDownTimer = 0f;
         isHoldTriggered = false;
     }
-
-    // Düğme devre dışı bırakılmamalı, ancak slotlar boşsa işlem yapmamalıdır.
-    // Bu nedenle, burada interactable durumu yönetmeye gerek yoktur.
-    private void OnEnable()
-    {
-        // "disabled olmayacak" gereksinimine göre görsel güncellemeye gerek yok
-    }
+    
 }

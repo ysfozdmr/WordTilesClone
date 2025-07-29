@@ -1,8 +1,6 @@
-// SubmitButtonUI.cs
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System; // Action için eklendi
 
 public class SubmitButtonUI : MonoBehaviour
 {
@@ -22,42 +20,34 @@ public class SubmitButtonUI : MonoBehaviour
         if (pointsTextOnButton == null) Debug.LogError("Points Text On Button atanmadı!", this);
         if (slotContainerManager == null) Debug.LogError("SlotContainerManager atanmadı!", this);
 
-        // Buton tıklama olayını GameController yerine doğrudan SubmitWord metoduna bağla
+
         submitButton.onClick.AddListener(OnSubmitButtonClicked); 
     }
 
     private void OnEnable()
     {
-        // SlotContainerManager'dan kelime durumu değişikliklerini dinle
+       
         if (slotContainerManager != null)
         {
-            slotContainerManager.OnWordStateChanged += UpdateUIState; // YENİ: Event'e abone ol
-            UpdateUIState(slotContainerManager.CheckForWordFormation()); // Başlangıç durumunu ayarla
+            slotContainerManager.OnWordStateChanged += UpdateUIState; 
+            UpdateUIState(slotContainerManager.CheckForWordFormation()); 
         }
     }
 
     private void OnDisable()
     {
-        // Aboneliği temizle
         if (slotContainerManager != null)
         {
-            slotContainerManager.OnWordStateChanged -= UpdateUIState; // YENİ: Aboneliği temizle
+            slotContainerManager.OnWordStateChanged -= UpdateUIState;
         }
     }
 
-    private void UpdateUIState(WordValidationResult result) // Bu metodun artık event'ten çağrıldığını unutmayın
+    private void UpdateUIState(WordValidationResult result) 
     {
-        // Buton üzerindeki puanı güncelle
-        // Kullanıcının isteği doğrultusunda metin formatı değiştirildi:
-        // Puan alınamıyorsa hiçbir şey yazma, alabiliyorsa sadece puanı yaz.
         pointsTextOnButton.text = result.PotentialBonus > 0 ? result.PotentialBonus.ToString() : "";
-
-        // Butonun etkileşimini ve rengini ayarla
-        submitButton.interactable = result.IsValid && result.PotentialBonus > 0; // Sadece geçerli ve puanı olan kelimeler için etkileşimli
+        submitButton.interactable = result.IsValid && result.PotentialBonus > 0; 
         submitButton.image.color = submitButton.interactable ? enabledColor : disabledColor;
 
-        // Buton altındaki metinlerin aktifliğini ayarla
-        // pointsTextOnButton boşsa, bu metinler de devre dışı bırakılmalı
         bool shouldTextsUnderneathBeActive = !string.IsNullOrEmpty(pointsTextOnButton.text);
         foreach (GameObject _gameObject in objectsUnderneath)
         {

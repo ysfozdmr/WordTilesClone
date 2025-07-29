@@ -1,10 +1,8 @@
-// GameController.cs
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using System.Collections;
-using System.Text;
-using UnityEngine.UI; // UI.Button için bu namespace'i ekleyin
+
+using UnityEngine.UI; 
 
 public class GameController : MonoBehaviour
 {
@@ -12,7 +10,7 @@ public class GameController : MonoBehaviour
     [SerializeField] private SlotContainerManager slotContainerManager;
     [SerializeField] private WordValidator wordValidator;
     [SerializeField] private GameOverPanel gameOverPanel;
-    [SerializeField] private Button submitButton; // YENİ: Submit butonu referansı
+    [SerializeField] private Button submitButton; 
 
     private int currentLevel = 1;
     private Dictionary<int, int> highScores = new Dictionary<int, int>();
@@ -23,10 +21,10 @@ public class GameController : MonoBehaviour
         if (slotContainerManager == null) Debug.LogError("SlotContainerManager atanmadı!");
         if (wordValidator == null) Debug.LogError("WordValidator atanmadı!");
         if (gameOverPanel == null) Debug.LogError("GameOverPanel atanmadı!");
-        if (submitButton == null) Debug.LogError("SubmitButton atanmadı!"); // YENİ kontrol
+        if (submitButton == null) Debug.LogError("SubmitButton atanmadı!");
 
-        // Event abonelikleri
-        slotContainerManager.OnWordStateChanged += UpdateSubmitButtonState; // YENİ: Buton durumunu güncellemek için abone ol
+    
+        slotContainerManager.OnWordStateChanged += UpdateSubmitButtonState; 
 
 
         LoadHighScores();
@@ -35,7 +33,6 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         StartLevel(currentLevel);
-        // Oyun başlangıcında butonu pasif hale getir
         if (submitButton != null)
         {
             submitButton.interactable = false;
@@ -44,10 +41,10 @@ public class GameController : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Event aboneliklerini temizle
+
         if (slotContainerManager != null)
         {
-            slotContainerManager.OnWordStateChanged -= UpdateSubmitButtonState; // YENİ: Aboneliği temizle
+            slotContainerManager.OnWordStateChanged -= UpdateSubmitButtonState;
         }
        
     }
@@ -60,27 +57,26 @@ public class GameController : MonoBehaviour
         gameOverPanel.Hide();
         Debug.Log($"Level {currentLevel} started.");
         slotContainerManager.UndoAllLetters();
-        if (submitButton != null) // Seviye başlangıcında butonu pasif hale getir
+        if (submitButton != null) 
         {
             submitButton.interactable = false;
         }
     }
 
-    // YENİDEN EKLENDİ: Submit butonunun bağlı olacağı fonksiyon
+    
     public void SubmitWordFromUI()
     {
         WordValidationResult result = slotContainerManager.CheckForWordFormation();
         if (result.IsValid)
         {
-            slotContainerManager.SubmitWord(); // Bu metot puanı da günceller
+            slotContainerManager.SubmitWord(); 
             Debug.Log($"Word '{result.FormedWord}' submitted! Current Level Score: {slotContainerManager.TotalScore}");
-            // Kelime submit edildikten sonra oyun bitiş koşullarını kontrol et
             CheckGameEndConditions();
         }
         else
         {
             Debug.LogWarning($"Cannot submit. '{result.FormedWord}' is not a valid word.");
-            // Geçersiz kelime durumunda butonu hemen pasif hale getir (eğer zaten aktifse)
+
             if (submitButton != null)
             {
                 submitButton.interactable = false;
@@ -88,7 +84,7 @@ public class GameController : MonoBehaviour
         }
     }
 
-    // YENİ METOT: Submit butonunun durumunu güncelle
+
     private void UpdateSubmitButtonState(WordValidationResult result)
     {
         if (submitButton != null)
@@ -114,6 +110,7 @@ public class GameController : MonoBehaviour
 
     private void EndLevel()
     {
+        
         List<Letter> remainingLetters = FindObjectsOfType<Letter>()
             .Where(letter => letter.gameObject.activeInHierarchy && !letter.isSelected)
             .ToList();
@@ -131,16 +128,18 @@ public class GameController : MonoBehaviour
 
         Debug.Log($"Level {currentLevel} finished! Final Score: {slotContainerManager.TotalScore}");
 
+        bool isThisNewHighScore=false;
         int currentHighScore = highScores.ContainsKey(currentLevel) ? highScores[currentLevel] : 0;
         if (slotContainerManager.TotalScore > currentHighScore)
         {
+            isThisNewHighScore = true;
             highScores[currentLevel] = slotContainerManager.TotalScore;
             SaveHighScores();
             currentHighScore = slotContainerManager.TotalScore;
             Debug.Log($"New High Score for Level {currentLevel}: {currentHighScore}");
         }
 
-        gameOverPanel.Show(slotContainerManager.TotalScore, currentHighScore, penaltyReasonMessage);
+        gameOverPanel.Show(slotContainerManager.TotalScore, currentHighScore,isThisNewHighScore, penaltyReason: penaltyReasonMessage);
     }
 
     private void LoadNextLevel()

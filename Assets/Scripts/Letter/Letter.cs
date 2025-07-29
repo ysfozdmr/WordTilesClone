@@ -1,4 +1,3 @@
-// Letter.cs
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
@@ -136,8 +135,8 @@ public class Letter : MonoBehaviour
         Transform emptySlotTransform = slotContainerManager.GetEmptySlotTransform();
         if (emptySlotTransform != null)
         {
-            // Yeni eklenen kısım: SlotContainerManager'a harfin yerleştirilmekte olduğunu bildir
-            slotContainerManager.isPlacingLetter = true; // Bu satırı ekleyin
+          
+            slotContainerManager.isPlacingLetter = true; 
 
             if (boxCollider2D != null) boxCollider2D.enabled = false;
 
@@ -223,8 +222,7 @@ public class Letter : MonoBehaviour
         transform.rotation = Quaternion.identity;
         transform.localScale = initialScale;
     }
-
-    // Yeni eklenen metot: Sorting Order'ı ayarlar
+    
     public void SetSortingOrder(int order)
     {
         if (spriteRenderer != null)
@@ -278,7 +276,7 @@ public class Letter : MonoBehaviour
         {
             isAnimating = false;
             Debug.Log("Harf hedefe ulaştı: " + targetPosition + " Süre: " + duration + "s");
-            onComplete?.Invoke(); // Callback'i çağır
+            onComplete?.Invoke(); 
         });
     }
 

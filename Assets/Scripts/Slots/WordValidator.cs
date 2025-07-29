@@ -47,11 +47,7 @@ public class WordValidator : MonoBehaviour
         return dictionaryWords.Contains(word.ToUpperInvariant());
     }
 
-    /// <summary>
-    /// Verilen harf listesinden sözlükteki herhangi bir kelimenin oluşturulup oluşturulamayacağını kontrol eder.
-    /// </summary>
-    /// <param name="availableChars">Mevcut harflerin listesi.</param>
-    /// <returns>Geçerli bir kelime oluşturulabiliyorsa true, aksi takdirde false.</returns>
+
     public bool CanFormWordFromCharacters(List<char> availableChars)
     {
         if (availableChars == null || availableChars.Count == 0)
@@ -96,9 +92,9 @@ public class WordValidator : MonoBehaviour
             }
             else
             {
-                return false; // Kelimeyi oluşturmak için yeterli harf yok
+                return false; 
             }
         }
-        return true; // Kelime oluşturulabilir
+        return true; 
     }
 }
