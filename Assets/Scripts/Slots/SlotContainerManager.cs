@@ -3,8 +3,8 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using DG.Tweening; // DOTween için
-using System; // Action için
+using DG.Tweening;
+using System;
 
 public class WordValidationResult
 {
@@ -20,12 +20,12 @@ public class SlotContainerManager : MonoBehaviour
     private List<Slot> allSlots = new List<Slot>();
 
     private Dictionary<int, Letter> occupiedLetters = new Dictionary<int, Letter>();
-    private List<Letter> placedLettersOrder = new List<Letter>(); // Harflerin yerleştirilme sırasını takip eder
+    private List<Letter> placedLettersOrder = new List<Letter>();
 
     private int totalScore = 0;
 
     public int TotalScore => totalScore;
-    public bool HasLettersInSlots => placedLettersOrder.Count > 0; // Slotlarda harf olup olmadığını kontrol eder
+    public bool HasLettersInSlots => placedLettersOrder.Count > 0;
     
     public bool isPlacingLetter = false;
 
@@ -34,12 +34,13 @@ public class SlotContainerManager : MonoBehaviour
     [Header("Word Validation")]
     [SerializeField] private WordValidator wordValidator;
 
-    // SubmittedWordsDisplay referansı
     [SerializeField] private SubmittedWordsDisplay submittedWordsDisplay;
     
     [SerializeField] private ScoreDisplay scoreDisplay;
 
-    public event System.Action<WordValidationResult> OnWordStateChanged;
+    [SerializeField] private GameController gameController; 
+
+    public event System.Action<WordValidationResult> OnWordStateChanged; // YENİDEN EKLENDİ
 
     private void Awake()
     {
@@ -59,6 +60,11 @@ public class SlotContainerManager : MonoBehaviour
             Debug.LogError("SubmittedWordsDisplay atanmadı! Lütfen Inspector'dan atayın.");
         }
 
+        // gameController referansının da Inspector'dan atanması önemli
+        if (gameController == null)
+        {
+            Debug.LogError("GameController atanmadı! Lütfen Inspector'dan atayın.");
+        }
 
         if (allSlots.Count == 0)
         {
@@ -74,12 +80,24 @@ public class SlotContainerManager : MonoBehaviour
 
     private void Start()
     {
-        UpdateWordStateForUI();
+        UpdateWordStateForUI(); // YENİDEN EKLENDİ: Başlangıçta UI'yı güncelle (butonun pasif olmasını sağlar)
+    }
+
+    public void ResetTotalScore()
+    {
+        totalScore = 0;
+        scoreDisplay?.UpdateScoreText(new WordValidationResult { FormedWord = "", IsValid = false, PotentialBonus = 0, Length = 0 }); // Skoru UI'da sıfırla
+    }
+
+    public void DeductScore(int amount)
+    {
+        totalScore = Mathf.Max(0, totalScore - amount);
+        scoreDisplay?.UpdateScoreText(new WordValidationResult { FormedWord = "", IsValid = false, PotentialBonus = 0, Length = 0 });
     }
 
     public Transform GetEmptySlotTransform()
     {
-        if (isPlacingLetter) // Eğer bir harf zaten yerleştiriliyorsa, yeni bir yerleştirmeyi engelle
+        if (isPlacingLetter)
         {
             Debug.LogWarning("Şu anda başka bir harf slota yerleştiriliyor. Lütfen bekleyin.");
             return null;
@@ -110,10 +128,6 @@ public class SlotContainerManager : MonoBehaviour
             int slotIndex = allSlots.IndexOf(targetSlot);
             if (occupiedLetters.ContainsKey(slotIndex))
             {
-                if (occupiedLetters[slotIndex] != null)
-                {
-                    totalScore -= Letter.GetPointsForCharacter(occupiedLetters[slotIndex].characterTextMesh.text[0]);
-                }
                 occupiedLetters[slotIndex] = letter;
             }
             else
@@ -121,20 +135,18 @@ public class SlotContainerManager : MonoBehaviour
                 occupiedLetters.Add(slotIndex, letter);
             }
 
-            totalScore += Letter.GetPointsForCharacter(letter.characterTextMesh.text[0]);
-            placedLettersOrder.Add(letter); // Harfi sıraya ekle
+            placedLettersOrder.Add(letter);
 
-            Debug.Log($"Slot {slotIndex} dolduruldu: Harf '{letter.characterTextMesh.text}' ile. Güncel Toplam Puan: {totalScore}");
-
+            Debug.Log($"Slot {slotIndex} dolduruldu: Harf '{letter.characterTextMesh.text}' ile.");
             levelLoader?.OnLetterPlacedInSlot(letter);
-            UpdateWordStateForUI();
-
-            isPlacingLetter = false; // Harf başarıyla yerleştirildi, bayrağı sıfırla
+            UpdateWordStateForUI(); // YENİDEN EKLENDİ
+            
+            isPlacingLetter = false;
         }
         else
         {
             Debug.LogError("Belirtilen Transform'a sahip slot bulunamadı!");
-            isPlacingLetter = false; // Hata durumunda da bayrağı sıfırla
+            isPlacingLetter = false;
         }
     }
 
@@ -148,15 +160,14 @@ public class SlotContainerManager : MonoBehaviour
 
             if (occupiedLetters.ContainsKey(slotIndex) && occupiedLetters[slotIndex] != null)
             {
-                totalScore -= Letter.GetPointsForCharacter(occupiedLetters[slotIndex].characterTextMesh.text[0]);
                 occupiedLetters.Remove(slotIndex);
             }
 
             targetSlot.IsEmpty = true;
             targetSlot.currentLetter = null;
 
-            Debug.Log($"Slot {slotIndex} boşaltıldı. Güncel Toplam Puan: {totalScore}");
-            UpdateWordStateForUI();
+            Debug.Log($"Slot {slotIndex} boşaltıldı.");
+            UpdateWordStateForUI(); // YENİDEN EKLENDİ
         }
         else
         {
@@ -172,11 +183,11 @@ public class SlotContainerManager : MonoBehaviour
     public void HandleLetterClickInSlot(Letter clickedLetter)
     {
         int clickedSlotIndex = -1;
-        foreach (var entry in occupiedLetters)
+        for(int i = 0; i < allSlots.Count; i++)
         {
-            if (entry.Value == clickedLetter)
+            if (allSlots[i].currentLetter == clickedLetter)
             {
-                clickedSlotIndex = entry.Key;
+                clickedSlotIndex = i;
                 break;
             }
         }
@@ -190,13 +201,13 @@ public class SlotContainerManager : MonoBehaviour
         List<Letter> lettersToReturn = new List<Letter>();
         for (int i = clickedSlotIndex; i < allSlots.Count; i++)
         {
-            if (occupiedLetters.ContainsKey(i) && occupiedLetters[i] != null)
+            if (allSlots[i].currentLetter != null)
             {
-                lettersToReturn.Add(occupiedLetters[i]);
+                lettersToReturn.Add(allSlots[i].currentLetter);
             }
         }
 
-        foreach(Letter letter in lettersToReturn) // Geri alınan harfleri sıradan çıkar
+        foreach(Letter letter in lettersToReturn)
         {
             placedLettersOrder.Remove(letter);
         }
@@ -216,7 +227,7 @@ public class SlotContainerManager : MonoBehaviour
                 levelLoader.OnLetterReturnedToOriginalPosition(letter);
             });
         }
-        UpdateWordStateForUI();
+        UpdateWordStateForUI(); // YENİDEN EKLENDİ
     }
 
     public WordValidationResult CheckForWordFormation()
@@ -244,6 +255,10 @@ public class SlotContainerManager : MonoBehaviour
             {
                 currentWordBuilder.Append(allSlots[i].currentLetter.characterTextMesh.text[0]);
                 formedLetters.Add(allSlots[i].currentLetter);
+            }
+            else if (currentWordBuilder.Length > 0)
+            {
+                break;
             }
         }
 
@@ -276,9 +291,9 @@ public class SlotContainerManager : MonoBehaviour
 
         if (result.IsValid)
         {
-            UpdateWordStateForUI();
+            totalScore += result.PotentialBonus;
+            scoreDisplay?.UpdateScoreText(result);
 
-            // Harfleri animasyonla tabloya gönder ve slotları temizle
             List<Letter> lettersInSlots = new List<Letter>();
             for (int i = 0; i < allSlots.Count; i++)
             {
@@ -288,7 +303,7 @@ public class SlotContainerManager : MonoBehaviour
                 }
             }
             AnimateAndDisplaySubmittedWord(lettersInSlots, result.FormedWord);
-            scoreDisplay.UpdateScoreText(new WordValidationResult());
+            gameController.CheckGameEndConditions(); 
         }
         else
         {
@@ -296,9 +311,6 @@ public class SlotContainerManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Slotlara en son eklenen harfi geri alır ve orijinal konumuna gönderir.
-    /// </summary>
     public void UndoLastLetter()
     {
         if (placedLettersOrder.Count == 0)
@@ -321,13 +333,10 @@ public class SlotContainerManager : MonoBehaviour
             levelLoader.OnLetterReturnedToOriginalPosition(lastLetter);
         });
 
-        Debug.Log($"Son harf '{lastLetter.characterTextMesh.text}' geri alındı. Yeni Toplam Puan: {totalScore}");
-        UpdateWordStateForUI();
+        Debug.Log($"Son harf '{lastLetter.characterTextMesh.text}' geri alındı.");
+        UpdateWordStateForUI(); // YENİDEN EKLENDİ
     }
 
-    /// <summary>
-    /// Tüm slotlardaki harfleri boşaltır ve orijinal konumlarına geri gönderir.
-    /// </summary>
     public void UndoAllLetters()
     {
         if (placedLettersOrder.Count == 0)
@@ -352,14 +361,10 @@ public class SlotContainerManager : MonoBehaviour
                 levelLoader.OnLetterReturnedToOriginalPosition(letter);
             });
         }
-        Debug.Log("Tüm harflere geri alındı. Yeni Toplam Puan: " + totalScore);
-        UpdateWordStateForUI();
+        Debug.Log("Tüm harflere geri alındı.");
+        UpdateWordStateForUI(); // YENİDEN EKLENDİ
     }
 
-    /// <summary>
-    /// Harfleri animasyonla gönderilen kelimeler tablosuna doğru hareket ettirir ve sonra yok eder.
-    /// Bu versiyon, animasyonların tamamlanmasını daha basit bir gecikme mekanizmasıyla takip eder.
-    /// </summary>
     private void AnimateAndDisplaySubmittedWord(List<Letter> letters, string word)
     {
         if (letters.Count == 0)
@@ -369,24 +374,18 @@ public class SlotContainerManager : MonoBehaviour
             return;
         }
 
-        // Animasyon hedef pozisyonunu SubmittedWordsDisplay'den al
         Vector3 targetCenter = submittedWordsDisplay.GetAnimationTargetPosition();
-        float animationDuration = 0.5f; // Her harfin hareket animasyon süresi
-        float delayBetweenLetters = 0.05f; // Harfler arasında küçük bir gecikme
+        float animationDuration = 0.5f;
+        float delayBetweenLetters = 0.05f;
 
-        // Tüm harflerin animasyonunun tamamlanması için gereken yaklaşık toplam süreyi hesapla.
-        // Bu süre, son harfin animasyonu bittikten sonra da küçük bir tampon içerir.
         float totalLetterAnimationTime = animationDuration + (letters.Count - 1) * delayBetweenLetters;
-        float finalCleanupDelay = totalLetterAnimationTime + 0.1f; // Tüm animasyonlar bittikten sonraki ek gecikme
+        float finalCleanupDelay = totalLetterAnimationTime + 0.1f;
 
-        // Belirtilen gecikmenin ardından kelimeyi gösterme ve slotları temizleme işlemini zamanla.
-        // Bu, her harfin tamamlanmasını ayrı ayrı takip etme ihtiyacını ortadan kaldırır.
         DOVirtual.DelayedCall(finalCleanupDelay, () => {
-            submittedWordsDisplay.DisplayWord(word); // Kelimeyi tabloya ekle
-            ClearSlotsAfterSubmission(); // Slotları temizle
+            submittedWordsDisplay.DisplayWord(word);
+            ClearSlotsAfterSubmission();
         });
 
-        // Her harf için animasyonu gecikmeli olarak başlat
         for (int i = 0; i < letters.Count; i++)
         {
             Letter letter = letters[i];
@@ -394,19 +393,14 @@ public class SlotContainerManager : MonoBehaviour
             {
                 float currentLetterDelay = i * delayBetweenLetters;
                 DOVirtual.DelayedCall(currentLetterDelay, () => {
-                    // Harfi hedefe doğru hareket ettir ve animasyon sonunda yok et
-                    // DİKKAT: MoveTo parametre sırası burada güncellendi
                     letter.MoveTo(targetCenter, animationDuration, () => {
-                        Destroy(letter.gameObject); // Hedefe varınca harfi yok et
+                        Destroy(letter.gameObject);
                     }, 0.5f, 0.2f, 720f);
                 });
             }
         }
     }
 
-    /// <summary>
-    /// Kelime gönderildikten sonra slotları temizler.
-    /// </summary>
     private void ClearSlotsAfterSubmission()
     {
         foreach (Slot slot in allSlots)
@@ -416,10 +410,10 @@ public class SlotContainerManager : MonoBehaviour
         }
         occupiedLetters.Clear();
         placedLettersOrder.Clear();
-        UpdateWordStateForUI();
+        UpdateWordStateForUI(); // YENİDEN EKLENDİ
     }
 
-    private void UpdateWordStateForUI()
+    private void UpdateWordStateForUI() // YENİDEN EKLENDİ
     {
         WordValidationResult currentResult = CheckForWordFormation();
         OnWordStateChanged?.Invoke(currentResult);

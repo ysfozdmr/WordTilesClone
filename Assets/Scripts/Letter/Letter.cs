@@ -1,4 +1,4 @@
-
+// Letter.cs
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
@@ -224,6 +224,15 @@ public class Letter : MonoBehaviour
         transform.localScale = initialScale;
     }
 
+    // Yeni eklenen metot: Sorting Order'ı ayarlar
+    public void SetSortingOrder(int order)
+    {
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.sortingOrder = order;
+        }
+    }
+
     public void SetLetter(string character)
     {
         if (characterTextMesh != null)
@@ -305,4 +314,5 @@ public class Letter : MonoBehaviour
             Debug.Log($"Harf {characterTextMesh.text} tekrar engellendi ve gizlendi.");
         }
     }
+    
 }

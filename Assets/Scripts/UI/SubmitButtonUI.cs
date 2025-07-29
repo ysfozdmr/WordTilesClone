@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System; // Action için eklendi
 
 public class SubmitButtonUI : MonoBehaviour
 {
@@ -15,34 +16,36 @@ public class SubmitButtonUI : MonoBehaviour
     [SerializeField] private Color disabledColor = Color.black;
     
 
-
     private void Awake()
     {
         if (submitButton == null) Debug.LogError("Submit Button atanmadı!", this);
         if (pointsTextOnButton == null) Debug.LogError("Points Text On Button atanmadı!", this);
         if (slotContainerManager == null) Debug.LogError("SlotContainerManager atanmadı!", this);
 
-        submitButton.onClick.AddListener(OnSubmitButtonClicked);
+        // Buton tıklama olayını GameController yerine doğrudan SubmitWord metoduna bağla
+        submitButton.onClick.AddListener(OnSubmitButtonClicked); 
     }
 
     private void OnEnable()
     {
+        // SlotContainerManager'dan kelime durumu değişikliklerini dinle
         if (slotContainerManager != null)
         {
-            slotContainerManager.OnWordStateChanged += UpdateUIState;
+            slotContainerManager.OnWordStateChanged += UpdateUIState; // YENİ: Event'e abone ol
+            UpdateUIState(slotContainerManager.CheckForWordFormation()); // Başlangıç durumunu ayarla
         }
-        UpdateUIState(slotContainerManager.CheckForWordFormation()); // Başlangıç durumunu ayarla
     }
 
     private void OnDisable()
     {
+        // Aboneliği temizle
         if (slotContainerManager != null)
         {
-            slotContainerManager.OnWordStateChanged -= UpdateUIState;
+            slotContainerManager.OnWordStateChanged -= UpdateUIState; // YENİ: Aboneliği temizle
         }
     }
 
-    private void UpdateUIState(WordValidationResult result)
+    private void UpdateUIState(WordValidationResult result) // Bu metodun artık event'ten çağrıldığını unutmayın
     {
         // Buton üzerindeki puanı güncelle
         // Kullanıcının isteği doğrultusunda metin formatı değiştirildi:

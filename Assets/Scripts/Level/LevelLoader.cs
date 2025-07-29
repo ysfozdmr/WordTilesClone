@@ -19,6 +19,14 @@ public class LevelLoader : MonoBehaviour
     [Tooltip("Adjusts the Z scale of the tile positions from JSON.")]
     public float positionScaleZ = 0.01f;
 
+    // Sorting Order için bir çarpan veya ofset ekleyebilirsiniz.
+    // JSON'daki Z değeri arttıkça tile'ın daha geride olmasını istiyorsak pozitif bir değer,
+    // daha önde olmasını istiyorsak negatif bir değer veya ters çevrilmiş bir değer kullanırız.
+    [Tooltip("Adjusts the multiplier for Z position to determine SpriteRenderer sorting order.")]
+    public int sortingOrderMultiplier = -100; // Örneğin, JSON'daki Z'yi tersine çevirerek sorting order'ı ayarla.
+                                              // Daha küçük Z değerleri daha yüksek sorting order'a sahip olsun (daha önde görünsün).
+
+
     private Transform levelContainer;
 
     [SerializeField] private GameObject letterPrefab;
@@ -122,6 +130,12 @@ public class LevelLoader : MonoBehaviour
             letterComponent.id = tileData.id;
             letterComponent.children = tileData.children;
             letterComponent.SetLetter(tileData.character);
+            
+            // JSON Z değerini kullanarak sorting order'ı ayarla
+            // Z değeri arttıkça, order azalmalı ki arkada kalsın.
+            // JSON Z değerleri genellikle 0-100 aralığında gibi görünüyor, bu yüzden bir çarpan kullanabiliriz.
+            int sortingOrder = Mathf.RoundToInt(tileData.position.z * sortingOrderMultiplier);
+            letterComponent.SetSortingOrder(sortingOrder);
 
             // Başlangıç durumu GenerateLevel'ın sonunda ayarlanacak
         }
@@ -150,6 +164,22 @@ public class LevelLoader : MonoBehaviour
 
     public void OnLetterPlacedInSlot(Letter placedLetter)
     {
+        // Letter slot'a yerleştirildiğinde sorting order'ını öne al.
+        if (placedLetter.GetComponent<SpriteRenderer>() != null)
+        {
+            placedLetter.GetComponent<SpriteRenderer>().sortingOrder = 1000; // Yüksek bir değer, her zaman önde görünmesini sağlar.
+        }
+
+        // Canvas'ın da önde görünmesini sağlamak için
+        if (placedLetter.contentCanvas != null)
+        {
+            Canvas placedCanvas = placedLetter.contentCanvas.GetComponent<Canvas>();
+            if (placedCanvas != null)
+            {
+                placedCanvas.sortingOrder = 1001; 
+            }
+        }
+
         foreach (int childId in placedLetter.children)
         {
             if (spawnedLetters.TryGetValue(childId, out Letter childLetter))
@@ -158,6 +188,7 @@ public class LevelLoader : MonoBehaviour
             }
         }
     }
+
     public Vector3 GetLetterOriginalPosition(int letterId)
     {
         if (originalLetterPositions.ContainsKey(letterId))
@@ -171,6 +202,27 @@ public class LevelLoader : MonoBehaviour
     public void OnLetterReturnedToOriginalPosition(Letter returnedLetter)
     {
         returnedLetter.isSelected = false;
+        
+        // Letter orijinal pozisyonuna döndüğünde sorting order'ını eski haline getir.
+        if (returnedLetter.GetComponent<SpriteRenderer>() != null)
+        {
+            Vector3 originalPos = GetLetterOriginalPosition(returnedLetter.id);
+            int originalSortingOrder = Mathf.RoundToInt(originalPos.z / positionScaleZ * sortingOrderMultiplier); // Z'yi tekrar orijinal JSON değerine çevir
+            returnedLetter.GetComponent<SpriteRenderer>().sortingOrder = originalSortingOrder;
+        }
+
+        // Canvas'ın da sorting order'ını eski haline getir
+        if (returnedLetter.contentCanvas != null)
+        {
+            Canvas returnedCanvas = returnedLetter.contentCanvas.GetComponent<Canvas>();
+            if (returnedCanvas != null)
+            {
+                Vector3 originalPos = GetLetterOriginalPosition(returnedLetter.id);
+                int originalSortingOrder = Mathf.RoundToInt(originalPos.z / positionScaleZ * sortingOrderMultiplier);
+                returnedCanvas.sortingOrder = originalSortingOrder + 1; // Letter'ın bir üst katmanında olsun
+            }
+        }
+
         foreach (int childId in returnedLetter.children)
         {
             if (spawnedLetters.TryGetValue(childId, out Letter childLetter))

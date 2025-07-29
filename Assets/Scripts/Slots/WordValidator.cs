@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 public class WordValidator : MonoBehaviour
 {
@@ -44,5 +45,60 @@ public class WordValidator : MonoBehaviour
             return false;
         }
         return dictionaryWords.Contains(word.ToUpperInvariant());
+    }
+
+    /// <summary>
+    /// Verilen harf listesinden sözlükteki herhangi bir kelimenin oluşturulup oluşturulamayacağını kontrol eder.
+    /// </summary>
+    /// <param name="availableChars">Mevcut harflerin listesi.</param>
+    /// <returns>Geçerli bir kelime oluşturulabiliyorsa true, aksi takdirde false.</returns>
+    public bool CanFormWordFromCharacters(List<char> availableChars)
+    {
+        if (availableChars == null || availableChars.Count == 0)
+        {
+            return false;
+        }
+
+        Dictionary<char, int> availableCharCounts = new Dictionary<char, int>();
+        foreach (char c in availableChars)
+        {
+            char upperChar = char.ToUpperInvariant(c);
+            if (availableCharCounts.ContainsKey(upperChar))
+            {
+                availableCharCounts[upperChar]++;
+            }
+            else
+            {
+                availableCharCounts.Add(upperChar, 1);
+            }
+        }
+
+        foreach (string word in dictionaryWords)
+        {
+            if (CanWordBeFormed(word, availableCharCounts))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private bool CanWordBeFormed(string word, Dictionary<char, int> availableCharCounts)
+    {
+        Dictionary<char, int> tempCharCounts = new Dictionary<char, int>(availableCharCounts);
+
+        foreach (char charInWord in word)
+        {
+            char upperCharInWord = char.ToUpperInvariant(charInWord);
+            if (tempCharCounts.ContainsKey(upperCharInWord) && tempCharCounts[upperCharInWord] > 0)
+            {
+                tempCharCounts[upperCharInWord]--;
+            }
+            else
+            {
+                return false; // Kelimeyi oluşturmak için yeterli harf yok
+            }
+        }
+        return true; // Kelime oluşturulabilir
     }
 }
