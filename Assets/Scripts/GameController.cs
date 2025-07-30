@@ -2,7 +2,8 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 
-using UnityEngine.UI; 
+using UnityEngine.UI;
+using System.Collections;
 
 public class GameController : MonoBehaviour
 {
@@ -14,6 +15,10 @@ public class GameController : MonoBehaviour
 
     private int currentLevel = 1;
     private Dictionary<int, int> highScores = new Dictionary<int, int>();
+
+    [SerializeField] private GameMenu gameMenu;
+
+    [SerializeField] private MainMenu mainMenu;
 
     private void Awake()
     {
@@ -32,7 +37,10 @@ public class GameController : MonoBehaviour
 
     private void Start()
     {
-        StartLevel(currentLevel);
+        //StartLevel(currentLevel);
+        slotContainerManager.gameObject.SetActive(false);
+        gameMenu.HideMenu();
+        mainMenu.ShowMenu();
         if (submitButton != null)
         {
             submitButton.interactable = false;
@@ -52,9 +60,20 @@ public class GameController : MonoBehaviour
     private void StartLevel(int levelNumber)
     {
         currentLevel = levelNumber;
+        slotContainerManager.gameObject.SetActive(true);
         slotContainerManager.ResetTotalScore();
         levelLoader.LoadLevel(currentLevel);
-        gameOverPanel.Hide();
+       
+
+        if (gameOverPanel.gameObject.activeSelf) 
+        {
+            gameOverPanel.Hide(); 
+        }
+
+        mainMenu.HideMenu();
+        gameMenu.scoreDisplay.ClearScoreText();
+        gameMenu.wordsDisplay.ClearWords();
+        gameMenu.ShowMenu();
         Debug.Log($"Level {currentLevel} started.");
         slotContainerManager.UndoAllLetters();
         if (submitButton != null) 
@@ -62,28 +81,6 @@ public class GameController : MonoBehaviour
             submitButton.interactable = false;
         }
     }
-
-    
-    public void SubmitWordFromUI()
-    {
-        WordValidationResult result = slotContainerManager.CheckForWordFormation();
-        if (result.IsValid)
-        {
-            slotContainerManager.SubmitWord(); 
-            Debug.Log($"Word '{result.FormedWord}' submitted! Current Level Score: {slotContainerManager.TotalScore}");
-            CheckGameEndConditions();
-        }
-        else
-        {
-            Debug.LogWarning($"Cannot submit. '{result.FormedWord}' is not a valid word.");
-
-            if (submitButton != null)
-            {
-                submitButton.interactable = false;
-            }
-        }
-    }
-
 
     private void UpdateSubmitButtonState(WordValidationResult result)
     {
@@ -104,11 +101,11 @@ public class GameController : MonoBehaviour
 
         if (noRemainingLettersOnBoard || !canFormAnyWord)
         {
-            EndLevel();
+           StartCoroutine(EndLevel());
         }
     }
 
-    private void EndLevel()
+    private IEnumerator EndLevel()
     {
         
         List<Letter> remainingLetters = FindObjectsOfType<Letter>()
@@ -139,28 +136,30 @@ public class GameController : MonoBehaviour
             Debug.Log($"New High Score for Level {currentLevel}: {currentHighScore}");
         }
 
+        int highestLevelUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
+        if (currentLevel >= highestLevelUnlocked)
+        {
+            // Bir sonraki seviyenin var olup olmadığını kontrol et
+            TextAsset nextLevelFile = Resources.Load<TextAsset>($"level_{currentLevel + 1}");
+            if (nextLevelFile != null)
+            {
+                PlayerPrefs.SetInt("HighestLevelUnlocked", currentLevel + 1);
+                PlayerPrefs.Save();
+                Debug.Log($"Level {currentLevel + 1} unlocked!");
+            }
+        }
+        yield return new WaitForSeconds(2f);
         gameOverPanel.Show(slotContainerManager.TotalScore, currentHighScore,isThisNewHighScore, penaltyReason: penaltyReasonMessage);
     }
 
-    private void LoadNextLevel()
+    public GameMenu GetGameMenu()
     {
-        int nextLevel = currentLevel + 1;
-        TextAsset nextLevelFile = Resources.Load<TextAsset>($"level_{nextLevel}");
-
-        if (nextLevelFile != null)
-        {
-            StartLevel(nextLevel);
-        }
-        else
-        {
-            Debug.Log("No more levels available! Game completed.");
-            gameOverPanel.Hide();
-        }
+        return gameMenu;
     }
 
-    private void RestartCurrentLevel()
+    public Dictionary<int, int> GetHighScores()
     {
-        StartLevel(currentLevel);
+        return highScores;
     }
 
     private void SaveHighScores()
@@ -185,6 +184,22 @@ public class GameController : MonoBehaviour
             highScores = new Dictionary<int, int>();
             Debug.Log("No saved high scores found. Starting fresh.");
         }
+    }
+
+    public void BackToMainMenu()
+    {
+        levelLoader.ClearExistingLevel();
+        slotContainerManager.UndoAllLetters();
+        slotContainerManager.gameObject.SetActive(false);
+        gameMenu.scoreDisplay.ClearScoreText();
+        gameMenu.wordsDisplay.ClearWords();
+        gameMenu.HideMenu();
+        mainMenu.ShowMenu();
+    }
+
+    public void HideGameMenu()
+    {
+        gameMenu.HideMenu();
     }
 
     [System.Serializable]

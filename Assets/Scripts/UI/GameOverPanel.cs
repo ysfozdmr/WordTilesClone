@@ -3,7 +3,7 @@ using TMPro;
 using DG.Tweening;
 using UnityEngine.UI; 
 
-public class GameOverPanel : MonoBehaviour
+public class GameOverPanel : Menu
 {
     [SerializeField] private TextMeshProUGUI finalScoreText;
     [SerializeField] private TextMeshProUGUI highScoreText;
@@ -17,6 +17,10 @@ public class GameOverPanel : MonoBehaviour
     [SerializeField] private ParticleSystem[] normalScoreEffect;
     
     [SerializeField] private CanvasGroup canvasGroup;
+
+    [SerializeField] private GameController gameController;
+
+    [SerializeField] private LevelSelectPopup levelSelectPopup;
     
 
     private void Awake()
@@ -25,8 +29,12 @@ public class GameOverPanel : MonoBehaviour
         if (highScoreText == null) Debug.LogError("HighScore TextMeshPro atanmadı!");
         if (penaltyReasonText == null) Debug.LogError("PenaltyReason TextMeshPro atanmadı!"); 
         if (canvasGroup == null) Debug.LogError("CanvasGroup atanmadı!");
-        Hide();
+
+        mainMenuButton.onClick.AddListener(MainMenuButtonListener);
+     
     }
+
+    
 
     public void Show(int finalScore, int highScore, bool isThisNewHighScore, string penaltyReason = "")
     {
@@ -46,11 +54,12 @@ public class GameOverPanel : MonoBehaviour
         }
 
   
+        canvasGroup.alpha = 0;
         gameObject.SetActive(true);
+        gameController.HideGameMenu();
 
   
         transform.localScale = Vector3.zero;
-        canvasGroup.alpha = 0;
 
       
         Sequence panelOpenSequence = DOTween.Sequence();
@@ -91,10 +100,22 @@ public class GameOverPanel : MonoBehaviour
         effectObject.transform.localScale = Vector3.one;
         effectObject.transform.rotation = Quaternion.identity;
 
+        foreach (var _effect in normalScoreEffect)
+        {
+            _effect.Stop();
+        }
+        highScoreEffect.gameObject.SetActive(false);
         canvasGroup.DOFade(0f, 0.2f).OnComplete(() =>
         {
             gameObject.SetActive(false);
         });
     }
 
+    private void MainMenuButtonListener()
+    {
+        gameController.BackToMainMenu();
+        levelSelectPopup.OpenPopup();
+        Hide();
+        
+    }
 }

@@ -1,5 +1,5 @@
-
 using UnityEngine;
+using System.Collections; 
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,18 +13,23 @@ public class LevelLoader : MonoBehaviour
     public float offsetX = 0f;
     public float offsetY = 0f;
     public float positionScaleZ = 0.01f;
-    
-    public int sortingOrderMultiplier = -100; 
 
+    public int sortingOrderMultiplier = -100;
+
+    
+    [Header("Conceal / Reveal Settings")]
+    [SerializeField] private float concealDelay = 0.5f; 
 
     private Transform levelContainer;
 
     [SerializeField] private GameObject letterPrefab;
 
     private Dictionary<int, Letter> spawnedLetters;
-    private Dictionary<int, Vector3> originalLetterPositions; 
+    private Dictionary<int, Vector3> originalLetterPositions;
 
-    [SerializeField] private SlotContainerManager slotContainerManager; 
+    [SerializeField] private SlotContainerManager slotContainerManager;
+
+    [SerializeField] private GameController gameController;
 
     private void Start()
     {
@@ -33,7 +38,6 @@ public class LevelLoader : MonoBehaviour
             Debug.LogError("SlotContainerManager atanmadı! Lütfen Inspector'dan atayın.");
             return;
         }
-        LoadLevel(levelToLoad);
     }
 
     public void LoadLevel(int levelNumber)
@@ -51,6 +55,9 @@ public class LevelLoader : MonoBehaviour
 
             Debug.Log($"'{levelData.title}' başlıklı Level {levelNumber} yükleniyor...");
             GenerateLevel(levelData);
+
+            gameController.GetGameMenu().UpdateTitleText(levelData.title);
+            StartCoroutine(ConcealAndRevealLettersCo()); //
         }
         else
         {
@@ -62,7 +69,7 @@ public class LevelLoader : MonoBehaviour
     {
         levelContainer = new GameObject($"Level_{levelToLoad}_Container").transform;
         spawnedLetters = new Dictionary<int, Letter>();
-        originalLetterPositions = new Dictionary<int, Vector3>(); 
+        originalLetterPositions = new Dictionary<int, Vector3>();
         foreach (Tile tile in levelData.tiles)
         {
             Letter letterComponent = CreateTileObject(tile);
@@ -70,6 +77,8 @@ public class LevelLoader : MonoBehaviour
             {
                 spawnedLetters.Add(letterComponent.id, letterComponent);
                 originalLetterPositions.Add(letterComponent.id, letterComponent.transform.position);
+
+                letterComponent.SetState(false); //
             }
         }
 
@@ -87,10 +96,22 @@ public class LevelLoader : MonoBehaviour
                 }
             }
         }
-        foreach (var entry in spawnedLetters)
+
+    }
+
+    private IEnumerator ConcealAndRevealLettersCo() 
+    {
+       
+        yield return new WaitForSeconds(concealDelay); 
+
+        foreach (var entry in spawnedLetters) 
         {
-            Letter letter = entry.Value;
-            letter.SetState(letter.blockedBy.Count == 0);
+            Letter letter = entry.Value; 
+            if (letter.blockedBy.Count == 0) 
+            {
+             
+                letter.Reveal(); 
+            }
         }
     }
 
@@ -120,7 +141,7 @@ public class LevelLoader : MonoBehaviour
             letterComponent.id = tileData.id;
             letterComponent.children = tileData.children;
             letterComponent.SetLetter(tileData.character);
-            
+
 
             int sortingOrder = Mathf.RoundToInt(tileData.position.z * sortingOrderMultiplier);
             letterComponent.SetSortingOrder(sortingOrder);
@@ -133,7 +154,7 @@ public class LevelLoader : MonoBehaviour
         return letterComponent;
     }
 
-    private void ClearExistingLevel()
+    public void ClearExistingLevel()
     {
         if (levelContainer != null)
         {
@@ -154,7 +175,7 @@ public class LevelLoader : MonoBehaviour
 
         if (placedLetter.GetComponent<SpriteRenderer>() != null)
         {
-            placedLetter.GetComponent<SpriteRenderer>().sortingOrder = 1000; 
+            placedLetter.GetComponent<SpriteRenderer>().sortingOrder = 1000;
         }
 
         if (placedLetter.contentCanvas != null)
@@ -162,7 +183,7 @@ public class LevelLoader : MonoBehaviour
             Canvas placedCanvas = placedLetter.contentCanvas.GetComponent<Canvas>();
             if (placedCanvas != null)
             {
-                placedCanvas.sortingOrder = 1001; 
+                placedCanvas.sortingOrder = 1001;
             }
         }
 
@@ -188,8 +209,8 @@ public class LevelLoader : MonoBehaviour
     public void OnLetterReturnedToOriginalPosition(Letter returnedLetter)
     {
         returnedLetter.isSelected = false;
-        
-       
+
+
         if (returnedLetter.GetComponent<SpriteRenderer>() != null)
         {
             Vector3 originalPos = GetLetterOriginalPosition(returnedLetter.id);
