@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems; // IPointerDownHandler, IPointerUpHandler için gerekli
@@ -8,11 +7,12 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 {
     [SerializeField] private Button undoButton;
     [SerializeField] private SlotContainerManager slotContainerManager;
-    [SerializeField] private float holdDuration = 0.5f; 
+    [SerializeField] private float holdDuration = 0.5f;
+    [SerializeField] private GameController gameController;
 
     private float pointerDownTimer = 0f;
     private bool isPointerDown = false;
-    private bool isHoldTriggered = false; 
+    private bool isHoldTriggered = false;
 
     private void Awake()
     {
@@ -27,9 +27,8 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
             pointerDownTimer += Time.deltaTime;
             if (pointerDownTimer >= holdDuration)
             {
-
                 slotContainerManager.UndoAllLetters();
-                isHoldTriggered = true; 
+                isHoldTriggered = true;
                 Debug.Log("Tümünü geri alma basılı tutma ile tetiklendi.");
             }
         }
@@ -37,6 +36,11 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (gameController.IsAIAgentActive())
+        {
+            return;
+        }
+
         isPointerDown = true;
         pointerDownTimer = 0f;
         isHoldTriggered = false;
@@ -44,18 +48,22 @@ public class UndoButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (gameController.IsAIAgentActive())
+        {
+            return;
+        }
+
         isPointerDown = false;
 
-        
+
         if (!isHoldTriggered)
         {
             slotContainerManager.UndoLastLetter();
             Debug.Log("Son harfi geri alma tıklama ile tetiklendi.");
         }
 
-    
+
         pointerDownTimer = 0f;
         isHoldTriggered = false;
     }
-    
 }

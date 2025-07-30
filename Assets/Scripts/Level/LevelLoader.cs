@@ -137,6 +137,7 @@ public class LevelLoader : MonoBehaviour
         if (letterComponent != null)
         {
             letterComponent.SetSlotContainerManager(slotContainerManager);
+            letterComponent.SetGameController(gameController);
 
             letterComponent.id = tileData.id;
             letterComponent.children = tileData.children;

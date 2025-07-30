@@ -22,16 +22,16 @@ public class AIGameAgent : MonoBehaviour
 
     private void Awake()
     {
-        if (gameController == null) Debug.LogError("GameController atanmadý!");
-        if (slotContainerManager == null) Debug.LogError("SlotContainerManager atanmadý!");
-        if (wordValidator == null) Debug.LogError("WordValidator atanmadý!");
-        if (levelLoader == null) Debug.LogError("LevelLoader atanmadý!");
+        if (gameController == null) Debug.LogError("GameController atanmadï¿½!");
+        if (slotContainerManager == null) Debug.LogError("SlotContainerManager atanmadï¿½!");
+        if (wordValidator == null) Debug.LogError("WordValidator atanmadï¿½!");
+        if (levelLoader == null) Debug.LogError("LevelLoader atanmadï¿½!");
     }
 
     public void StartAIGame()
     {
         if (isAITurn) return;
-        Debug.Log("AI oyuna baþlýyor...");
+        Debug.Log("AI oyuna baï¿½lï¿½yor...");
         isAITurn = true;
 
         destroyedLetterIds.Clear();
@@ -94,10 +94,10 @@ public class AIGameAgent : MonoBehaviour
                 List<Letter> currentlyAvailableLetters = GetAvailableLettersForAI();
                 if (currentlyAvailableLetters.Count == 0 && !slotContainerManager.HasLettersInSlots)
                 {
-                    Debug.Log("AI: Oynanabilir harf kalmadý ve slotlar boþ. Oyun sonu kontrol ediliyor.");
+                    Debug.Log("AI: Oynanabilir harf kalmadï¿½ ve slotlar boï¿½. Oyun sonu kontrol ediliyor.");
                     if (!gameController.GetGameOverPanel().gameObject.activeSelf)
                     {
-                        Debug.LogWarning("AI: Oynanabilir harf yok ama oyun bitmedi. Döngüden çýkýlýyor.");
+                        Debug.LogWarning("AI: Oynanabilir harf yok ama oyun bitmedi. Dï¿½ngï¿½den ï¿½ï¿½kï¿½lï¿½yor.");
                     }
                     StopAIGame();
                     yield break;
@@ -122,17 +122,17 @@ public class AIGameAgent : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("AI oluþturulacak yeni bir kelime bulamadý.");
+                    Debug.Log("AI oluï¿½turulacak yeni bir kelime bulamadï¿½.");
 
                     if (slotContainerManager.HasLettersInSlots)
                     {
-                        Debug.Log("AI: Slotlardaki harfleri geri alýyor.");
+                        Debug.Log("AI: Slotlardaki harfleri geri alï¿½yor.");
                         slotContainerManager.UndoAllLetters();
                         yield return new WaitForSeconds(actionDelay);
                     }
                     else
                     {
-                        Debug.Log("AI: Yapacak hamle bulamadý ve slotlar boþ. Oyun sonu kontrol ediliyor.");
+                        Debug.Log("AI: Yapacak hamle bulamadï¿½ ve slotlar boï¿½. Oyun sonu kontrol ediliyor.");
 
                         if (!gameController.GetGameOverPanel().gameObject.activeSelf)
                         {
@@ -242,7 +242,7 @@ public class AIGameAgent : MonoBehaviour
                 {
                     if (!letter.IsFaceUp() || letter.blockedBy.Count > 0 || letter.isSelected)
                     {
-                        Debug.LogWarning($"AI, harf '{letter.characterTextMesh.text}' üzerine týklayamýyor. Kelime atlandý.");
+                        Debug.LogWarning($"AI, harf '{letter.characterTextMesh.text}' ï¿½zerine tï¿½klayamï¿½yor. Kelime atlandï¿½.");
                         slotContainerManager.UndoAllLetters();
                         yield break;
                     }
@@ -251,7 +251,7 @@ public class AIGameAgent : MonoBehaviour
             }
             catch (MissingReferenceException)
             {
-                Debug.LogWarning("AI: Yok olan harf bulundu. Kelime atlandý.");
+                Debug.LogWarning("AI: Yok olan harf bulundu. Kelime atlandï¿½.");
                 destroyedLetterIds.Add(letter.id);
                 slotContainerManager.UndoAllLetters();
                 yield break;
@@ -263,7 +263,7 @@ public class AIGameAgent : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("AI: Geçersiz harf bulundu. Kelime atlandý.");
+                Debug.LogWarning("AI: Geï¿½ersiz harf bulundu. Kelime atlandï¿½.");
                 slotContainerManager.UndoAllLetters();
                 yield break;
             }
@@ -280,7 +280,7 @@ public class AIGameAgent : MonoBehaviour
             }
             catch (MissingReferenceException)
             {
-                Debug.LogWarning("AI: Harf yerleþtirme sýrasýnda harf yok oldu.");
+                Debug.LogWarning("AI: Harf yerleï¿½tirme sï¿½rasï¿½nda harf yok oldu.");
                 destroyedLetterIds.Add(letter.id);
                 slotContainerManager.UndoAllLetters();
                 yield break;
@@ -297,7 +297,7 @@ public class AIGameAgent : MonoBehaviour
                 }
                 catch (MissingReferenceException)
                 {
-                    Debug.LogWarning("AI: Harf kontrol sýrasýnda yok oldu.");
+                    Debug.LogWarning("AI: Harf kontrol sï¿½rasï¿½nda yok oldu.");
                     destroyedLetterIds.Add(letter.id);
                     slotContainerManager.UndoAllLetters();
                     yield break;
@@ -305,7 +305,7 @@ public class AIGameAgent : MonoBehaviour
 
                 if (!isPlaced)
                 {
-                    Debug.LogWarning($"Harf yerleþtirilemedi. Kelime atlandý.");
+                    Debug.LogWarning($"Harf yerleï¿½tirilemedi. Kelime atlandï¿½.");
                     slotContainerManager.UndoAllLetters();
                     yield break;
                 }
@@ -322,5 +322,10 @@ public class AIGameAgent : MonoBehaviour
                 destroyedLetterIds.Add(letter.id);
             }
         }
+    }
+
+    public bool IsAIAgentActive()
+    {
+        return isAITurn;
     }
 }

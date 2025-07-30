@@ -20,6 +20,8 @@ public class Letter : MonoBehaviour
 
     [SerializeField] private SpriteRenderer spriteRenderer;
 
+    [SerializeField] private GameController gameController;
+
     [SerializeField] public TextMeshProUGUI characterTextMesh;
     [SerializeField] private TextMeshProUGUI pointTextMesh;
 
@@ -52,12 +54,18 @@ public class Letter : MonoBehaviour
         {
             return points;
         }
+
         return 0;
     }
 
     public void SetSlotContainerManager(SlotContainerManager manager)
     {
         slotContainerManager = manager;
+    }
+
+    public void SetGameController(GameController controller)
+    {
+        gameController = controller;
     }
 
     private void Awake()
@@ -93,7 +101,7 @@ public class Letter : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (!boxCollider2D.enabled || isAnimating) return;
+        if (!boxCollider2D.enabled || isAnimating || gameController.IsAIAgentActive()) return;
 
         if (isSelected)
         {
@@ -105,6 +113,7 @@ public class Letter : MonoBehaviour
             {
                 Debug.LogError("SlotContainerManager referansı Letter'a atanmadı!");
             }
+
             return;
         }
 
@@ -116,7 +125,8 @@ public class Letter : MonoBehaviour
 
         if (blockedBy.Count > 0)
         {
-            Debug.LogWarning($"Harf {characterTextMesh.text} henüz alınamaz, {blockedBy.Count} harf tarafından engelleniyor.");
+            Debug.LogWarning(
+                $"Harf {characterTextMesh.text} henüz alınamaz, {blockedBy.Count} harf tarafından engelleniyor.");
             return;
         }
 
@@ -135,7 +145,6 @@ public class Letter : MonoBehaviour
         Transform emptySlotTransform = slotContainerManager.GetEmptySlotTransform();
         if (emptySlotTransform != null)
         {
-
             slotContainerManager.isPlacingLetter = true;
 
             if (boxCollider2D != null) boxCollider2D.enabled = false;
@@ -193,6 +202,7 @@ public class Letter : MonoBehaviour
                 spriteRenderer.sprite = backSprite;
                 contentCanvas.SetActive(false);
             }
+
             if (boxCollider2D != null)
             {
                 boxCollider2D.enabled = isFaceUp;
@@ -253,7 +263,8 @@ public class Letter : MonoBehaviour
         }
     }
 
-    public void MoveTo(Vector3 targetPosition, float duration, Action onComplete = null, float jumpHeight = 1f, float scaleDownFactor = 0.6f, float rotationAmount = 360f)
+    public void MoveTo(Vector3 targetPosition, float duration, Action onComplete = null, float jumpHeight = 1f,
+        float scaleDownFactor = 0.6f, float rotationAmount = 360f)
     {
         if (isAnimating)
             return;
@@ -263,14 +274,17 @@ public class Letter : MonoBehaviour
         Sequence moveSequence = DOTween.Sequence();
 
         float jumpDuration = duration * 0.3f;
-        moveSequence.Append(transform.DOMove(transform.position + new Vector3(-1, 1, 0) * jumpHeight, jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Append(transform.DOMove(transform.position + new Vector3(-1, 1, 0) * jumpHeight, jumpDuration)
+            .SetEase(Ease.OutQuad));
         moveSequence.Join(transform.DOScale(initialScale * scaleDownFactor, jumpDuration).SetEase(Ease.OutQuad));
-        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 4f), jumpDuration).SetEase(Ease.OutQuad));
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, -rotationAmount / 4f), jumpDuration)
+            .SetEase(Ease.OutQuad));
 
 
         float moveDuration = duration * 0.7f;
         moveSequence.Append(transform.DOMove(targetPosition, moveDuration).SetEase(Ease.InOutSine));
-        moveSequence.Join(transform.DORotate(new Vector3(0, 0, rotationAmount), moveDuration, RotateMode.FastBeyond360).SetEase(Ease.InOutSine));
+        moveSequence.Join(transform.DORotate(new Vector3(0, 0, rotationAmount), moveDuration, RotateMode.FastBeyond360)
+            .SetEase(Ease.InOutSine));
         moveSequence.Join(transform.DOScale(initialScale, moveDuration).SetEase(Ease.OutBack));
 
         moveSequence.OnComplete(() =>
@@ -285,10 +299,8 @@ public class Letter : MonoBehaviour
     {
         isSelected = false;
         if (boxCollider2D != null) boxCollider2D.enabled = false;
-        MoveTo(originalPos, 0.5f, () =>
-        {
-            onComplete?.Invoke();
-        }, jumpHeight: 1f, scaleDownFactor: 1f, rotationAmount: 0f);
+        MoveTo(originalPos, 0.5f, () => { onComplete?.Invoke(); }, jumpHeight: 1f, scaleDownFactor: 1f,
+            rotationAmount: 0f);
     }
 
     public void OnParentLetterTaken(int parentId)
@@ -325,7 +337,8 @@ public class Letter : MonoBehaviour
 
         if (blockedBy.Count > 0)
         {
-            Debug.LogWarning($"AI, engellenmiş harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor. Engelleyen harf sayısı: {blockedBy.Count}");
+            Debug.LogWarning(
+                $"AI, engellenmiş harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor. Engelleyen harf sayısı: {blockedBy.Count}");
             return;
         }
 
@@ -359,5 +372,4 @@ public class Letter : MonoBehaviour
     {
         return isFaceUp;
     }
-
 }

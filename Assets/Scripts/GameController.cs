@@ -191,6 +191,7 @@ public class GameController : MonoBehaviour
 
     public void BackToMainMenu()
     {
+        OnStopAIButtonClicked();
         levelLoader.ClearExistingLevel();
         slotContainerManager.UndoAllLetters();
         slotContainerManager.gameObject.SetActive(false);
@@ -229,6 +230,11 @@ public class GameController : MonoBehaviour
         {
             aiGameAgent.StopAIGame();
         }
+    }
+
+    public bool IsAIAgentActive()
+    {
+       return aiGameAgent.IsAIAgentActive();
     }
 
     [System.Serializable]
