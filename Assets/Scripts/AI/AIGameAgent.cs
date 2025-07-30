@@ -10,8 +10,8 @@ public class AIGameAgent : MonoBehaviour
     [SerializeField] private GameController gameController;
     [SerializeField] private SlotContainerManager slotContainerManager;
     [SerializeField] private WordValidator wordValidator;
-    [SerializeField] private LevelLoader levelLoader; 
-    [SerializeField] private float actionDelay = 0.3f; 
+    [SerializeField] private LevelLoader levelLoader;
+    [SerializeField] private float actionDelay = 0.3f;
 
     private bool isAITurn = false;
     private const int MAX_WORD_LENGTH = 7;
@@ -52,7 +52,7 @@ public class AIGameAgent : MonoBehaviour
             if (letter == null || destroyedLetterIds.Contains(kvp.Key))
                 continue;
 
-     
+
             try
             {
                 if (!letter.gameObject.activeInHierarchy)
@@ -60,12 +60,12 @@ public class AIGameAgent : MonoBehaviour
             }
             catch (MissingReferenceException)
             {
-               
+
                 destroyedLetterIds.Add(kvp.Key);
                 continue;
             }
 
-            
+
             if (!letter.isSelected && letter.IsFaceUp() && letter.blockedBy.Count == 0)
             {
                 availableLetters.Add(letter);
@@ -95,7 +95,6 @@ public class AIGameAgent : MonoBehaviour
                 if (currentlyAvailableLetters.Count == 0 && !slotContainerManager.HasLettersInSlots)
                 {
                     Debug.Log("AI: Oynanabilir harf kalmadý ve slotlar boþ. Oyun sonu kontrol ediliyor.");
-                    gameController.CheckGameEndConditions();
                     if (!gameController.GetGameOverPanel().gameObject.activeSelf)
                     {
                         Debug.LogWarning("AI: Oynanabilir harf yok ama oyun bitmedi. Döngüden çýkýlýyor.");
@@ -104,21 +103,21 @@ public class AIGameAgent : MonoBehaviour
                     yield break;
                 }
 
-              
-                (string bestWord, List<Letter> lettersToUse) = FindBestWord(currentlyAvailableLetters);
+
+                (string bestWord, List<Letter> lettersToUse) = FindBestWord_ConsideringPenalty(currentlyAvailableLetters);
 
                 if (!string.IsNullOrEmpty(bestWord))
                 {
                     Debug.Log($"AI en iyi kelimeyi buldu: {bestWord}");
 
-                   
+
                     yield return StartCoroutine(PlaceLettersForWord(lettersToUse));
 
-                   
+
                     yield return new WaitForSeconds(actionDelay);
                     slotContainerManager.SubmitWord();
 
-                   
+
                     yield return new WaitForSeconds(actionDelay);
                 }
                 else
@@ -134,10 +133,10 @@ public class AIGameAgent : MonoBehaviour
                     else
                     {
                         Debug.Log("AI: Yapacak hamle bulamadý ve slotlar boþ. Oyun sonu kontrol ediliyor.");
-                        gameController.CheckGameEndConditions();
+
                         if (!gameController.GetGameOverPanel().gameObject.activeSelf)
                         {
-                           
+
                             yield return new WaitForSeconds(actionDelay * 5);
                         }
                     }
@@ -145,11 +144,11 @@ public class AIGameAgent : MonoBehaviour
             }
             else
             {
-                
+
                 yield return null;
             }
 
-       
+
             if (gameController.GetGameOverPanel().gameObject.activeSelf)
             {
                 StopAIGame();
@@ -165,155 +164,71 @@ public class AIGameAgent : MonoBehaviour
     }
 
 
-    private (string bestWord, List<Letter> lettersToUse) FindBestWord(List<Letter> availableLetters)
+
+    private (string bestWord, List<Letter> lettersToUse) FindBestWord_ConsideringPenalty(List<Letter> availableLetters)
     {
         string bestWord = "";
-        int maxScore = -1;
-        List<Letter> lettersForBestWord = new List<Letter>();
+        int bestTotalScore = int.MinValue;
+        List<Letter> bestLetterCombo = new List<Letter>();
 
-        List<Letter> safeAvailableLetters = new List<Letter>();
-        foreach (Letter letter in availableLetters)
-        {
-            try
-            {
-                if (letter != null && letter.gameObject != null && letter.gameObject.activeInHierarchy)
-                {
-                    safeAvailableLetters.Add(letter);
-                }
-            }
-            catch (MissingReferenceException)
-            {
-                if (letter != null)
-                    destroyedLetterIds.Add(letter.id);
-                continue;
-            }
-        }
-
-        Dictionary<char, List<Letter>> charToLetterMap = new Dictionary<char, List<Letter>>();
-        foreach (Letter letter in safeAvailableLetters)
-        {
-            try
-            {
-                char charVal = char.ToUpperInvariant(letter.characterTextMesh.text[0]);
-                if (!charToLetterMap.ContainsKey(charVal))
-                {
-                    charToLetterMap[charVal] = new List<Letter>();
-                }
-                charToLetterMap[charVal].Add(letter);
-            }
-            catch (MissingReferenceException)
-            {
-                destroyedLetterIds.Add(letter.id);
-                continue;
-            }
-        }
-
-        var dictionaryWordsField = typeof(WordValidator).GetField("dictionaryWords",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var dictionaryWordsField = typeof(WordValidator).GetField("dictionaryWords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         HashSet<string> allDictionaryWords = (HashSet<string>)dictionaryWordsField.GetValue(wordValidator);
 
         foreach (string word in allDictionaryWords)
         {
-           
-            Dictionary<char, int> requiredChars = new Dictionary<char, int>();
-            foreach (char c in word.ToUpperInvariant())
+            if (word.Length > MAX_WORD_LENGTH)
+                continue;
+
+            string upperWord = word.ToUpperInvariant();
+            Dictionary<char, int> neededCounts = new Dictionary<char, int>();
+            foreach (char c in upperWord)
             {
-                if (requiredChars.ContainsKey(c))
-                    requiredChars[c]++;
-                else
-                    requiredChars[c] = 1;
+                if (!neededCounts.ContainsKey(c))
+                    neededCounts[c] = 0;
+                neededCounts[c]++;
             }
 
-            bool canFormWord = true;
-            List<Letter> lettersForThisWord = new List<Letter>();
-            Dictionary<char, List<Letter>> tempCharMap = new Dictionary<char, List<Letter>>();
+            List<Letter> candidateLetters = new List<Letter>();
+            List<Letter> unusedLetters = new List<Letter>(availableLetters);
+            HashSet<int> usedIds = new HashSet<int>();
+            bool canForm = true;
 
-    
-            foreach (var kvp in charToLetterMap)
+            foreach (char c in upperWord)
             {
-                tempCharMap[kvp.Key] = new List<Letter>(kvp.Value);
-            }
+                Letter match = unusedLetters.FirstOrDefault(l =>
+                    !usedIds.Contains(l.id) &&
+                    l.characterTextMesh != null &&
+                    char.ToUpperInvariant(l.characterTextMesh.text[0]) == c);
 
-          
-            foreach (var kvp in requiredChars)
-            {
-                char neededChar = kvp.Key;
-                int neededCount = kvp.Value;
-
-                if (!tempCharMap.ContainsKey(neededChar) || tempCharMap[neededChar].Count < neededCount)
+                if (match == null)
                 {
-                    canFormWord = false;
+                    canForm = false;
                     break;
                 }
 
-                for (int i = 0; i < neededCount; i++)
-                {
-                    Letter selectedLetter = tempCharMap[neededChar][0];
-
-                    try
-                    {
-                        if (selectedLetter != null && selectedLetter.gameObject != null)
-                        {
-                            lettersForThisWord.Add(selectedLetter);
-                            tempCharMap[neededChar].RemoveAt(0);
-                        }
-                        else
-                        {
-                            canFormWord = false;
-                            break;
-                        }
-                    }
-                    catch (MissingReferenceException)
-                    {
-                        destroyedLetterIds.Add(selectedLetter.id);
-                        canFormWord = false;
-                        break;
-                    }
-                }
-
-                if (!canFormWord) break;
+                candidateLetters.Add(match);
+                usedIds.Add(match.id);
+                unusedLetters.Remove(match);
             }
 
-            if (canFormWord && lettersForThisWord.Count > 0)
+            if (canForm)
             {
-                int wordScore = 0;
-                bool scoreCalculationValid = true;
+                int wordScore = candidateLetters.Sum(l => Letter.GetPointsForCharacter(l.characterTextMesh.text[0]));
 
-                foreach (Letter letter in lettersForThisWord)
-                {
-                    try
-                    {
-                        if (letter != null && letter.characterTextMesh != null)
-                        {
-                            wordScore += Letter.GetPointsForCharacter(letter.characterTextMesh.text[0]);
-                        }
-                        else
-                        {
-                            scoreCalculationValid = false;
-                            break;
-                        }
-                    }
-                    catch (MissingReferenceException)
-                    {
-                        destroyedLetterIds.Add(letter.id);
-                        scoreCalculationValid = false;
-                        break;
-                    }
-                }
+                int remainingPenalty = (availableLetters.Count - candidateLetters.Count) * 10;
+                int totalScore = wordScore - remainingPenalty;
 
-                if (scoreCalculationValid && wordScore > maxScore)
+                if (totalScore > bestTotalScore)
                 {
-                    maxScore = wordScore;
+                    bestTotalScore = totalScore;
                     bestWord = word;
-                    lettersForBestWord = new List<Letter>(lettersForThisWord);
+                    bestLetterCombo = candidateLetters;
                 }
             }
         }
 
-        return (bestWord, lettersForBestWord);
+        return (bestWord, bestLetterCombo);
     }
-
-
 
     private IEnumerator PlaceLettersForWord(List<Letter> letters)
     {
