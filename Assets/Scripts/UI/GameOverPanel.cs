@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using DG.Tweening;
 using UnityEngine.UI;
+using System.Collections;
 
 public class GameOverPanel : Menu
 {
@@ -58,7 +59,7 @@ public class GameOverPanel : Menu
         }
 
         canvasGroup.alpha = 0;
-        mainMenuButton.gameObject.SetActive(false); 
+        mainMenuButton.gameObject.SetActive(false);
         gameObject.SetActive(true);
         gameController.HideGameMenu();
 
@@ -75,10 +76,10 @@ public class GameOverPanel : Menu
             {
                 displayedScore = x;
                 finalScoreText.text = $"Score: {displayedScore}";
-            }, finalScore, 1f).SetEase(Ease.OutQuad); 
+            }, finalScore, 1f).SetEase(Ease.OutQuad);
 
-            
-            DOVirtual.DelayedCall(1.2f, () => 
+
+            DOVirtual.DelayedCall(1.2f, () =>
             {
                 mainMenuButton.gameObject.SetActive(true);
                 mainMenuButton.transform.localScale = Vector3.zero;
@@ -138,8 +139,40 @@ public class GameOverPanel : Menu
     private void MainMenuButtonListener()
     {
         gameController.BackToMainMenu();
-        levelSelectPopup.OpenPopup();
-        Hide();
 
+        int highestUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
+        int previousHighest = PlayerPrefs.GetInt("PreviousHighestLevel", 1);
+        bool isNewUnlock = highestUnlocked > previousHighest;
+        levelSelectPopup.OpenPopup(() =>
+        {
+            if (isNewUnlock)
+            {
+                PlayerPrefs.SetInt("PreviousHighestLevel", highestUnlocked);
+                PlayerPrefs.Save();
+
+                LevelItemUI unlockedItem = levelSelectPopup.GetUnlockedLevelItem();
+                if (unlockedItem != null)
+                {
+                    levelSelectPopup.StartCoroutine(unlockedItem.PlayUnlockAnimation()); // ✅ BU!
+                }
+            }
+        });
+
+
+
+        Hide();
     }
+
+
+
+    private IEnumerator PlayUnlockAnimAfterDelay()
+    {
+        yield return new WaitForSeconds(0.5f);
+        LevelItemUI unlockedItem = levelSelectPopup.GetUnlockedLevelItem();
+        if (unlockedItem != null)
+        {
+            StartCoroutine(unlockedItem.PlayUnlockAnimation());
+        }
+    }
+
 }

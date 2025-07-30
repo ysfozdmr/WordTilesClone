@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
+using System.Collections;
 
 public class LevelSelectPopup : MonoBehaviour
 {
@@ -13,10 +13,19 @@ public class LevelSelectPopup : MonoBehaviour
     [SerializeField] private float animationDuration = 0.3f;
 
     [SerializeField] private GameController gameController;
+
     [SerializeField] private ScrollRect scrollRect;
 
     private void Start()
     {
+        // İlk açılışta kontrol
+        int highestUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
+        if (!PlayerPrefs.HasKey("PreviousHighestLevel"))
+        {
+            PlayerPrefs.SetInt("PreviousHighestLevel", highestUnlocked);
+            PlayerPrefs.Save();
+        }
+
         popupPanel.transform.localScale = Vector3.zero;
         popupPanel.SetActive(false);
 
@@ -26,19 +35,29 @@ public class LevelSelectPopup : MonoBehaviour
         }
     }
 
-    public void OpenPopup()
+    public void OpenPopup() // Bu Unity'den çağrılan versiyon
+    {
+        OpenPopup(null);
+    }
+
+    public void OpenPopup(System.Action onOpened = null)
     {
         popupPanel.SetActive(true);
         PopulateLevels();
-        popupPanel.transform.DOScale(1f, animationDuration).SetEase(Ease.OutBack).OnComplete(() =>
-        {
-            ScrollToHighestUnlockedLevel();
+
+        popupPanel.transform.DOScale(1f, animationDuration)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() =>
+            {
+                ScrollToLevel(PlayerPrefs.GetInt("HighestLevelUnlocked", 1));
+                onOpened?.Invoke(); // sadece dışarıdan çağrıldığında çalışır
         });
     }
 
     public void ClosePopup()
     {
-        popupPanel.transform.DOScale(0f, animationDuration).SetEase(Ease.InBack).OnComplete(() => {
+        popupPanel.transform.DOScale(0f, animationDuration).SetEase(Ease.InBack).OnComplete(() =>
+        {
             popupPanel.SetActive(false);
         });
     }
@@ -51,113 +70,81 @@ public class LevelSelectPopup : MonoBehaviour
         }
 
         int highestLevelUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
-        Dictionary<int, int> highScores = gameController.GetHighScores();
+        int previousHighest = PlayerPrefs.GetInt("PreviousHighestLevel", 1);
 
-        List<LevelItemData> unlockedLevelsData = new List<LevelItemData>();
-        List<LevelItemData> lockedLevelsData = new List<LevelItemData>();
+        Dictionary<int, int> highScores = gameController.GetHighScores();
 
         int levelCount = 1;
         while (true)
         {
             TextAsset levelFile = Resources.Load<TextAsset>($"level_{levelCount}");
-            if (levelFile == null)
-            {
-                break;
-            }
+            if (levelFile == null) break;
 
             Level levelData = JsonUtility.FromJson<Level>(levelFile.text);
+            GameObject itemGO = Instantiate(levelItemPrefab, contentParent);
+            LevelItemUI itemUI = itemGO.GetComponent<LevelItemUI>();
 
             int currentHighScore = highScores.ContainsKey(levelCount) ? highScores[levelCount] : 0;
             bool isLocked = levelCount > highestLevelUnlocked;
+            bool isNewlyUnlocked = levelCount == highestLevelUnlocked && highestLevelUnlocked > previousHighest;
 
-            LevelItemData itemData = new LevelItemData
-            {
-                levelIndex = levelCount,
-                title = levelData.title,
-                score = currentHighScore,
-                isLocked = isLocked
-            };
-
-            if (isLocked)
-            {
-                lockedLevelsData.Add(itemData);
-            }
-            else
-            {
-                unlockedLevelsData.Add(itemData);
-            }
-
+            itemUI.Setup(levelCount, levelData.title, currentHighScore, isLocked, gameController, isNewlyUnlocked);
             levelCount++;
         }
+    }
 
-        foreach (var data in unlockedLevelsData)
-        {
-            GameObject itemGO = Instantiate(levelItemPrefab, contentParent);
-            LevelItemUI itemUI = itemGO.GetComponent<LevelItemUI>();
-            itemUI.Setup(data.levelIndex, data.title, data.score, data.isLocked, gameController);
-        }
+    private void ScrollToLevel(int targetLevel)
+    {
+        StartCoroutine(ScrollToLevelCoroutine(targetLevel));
+    }
 
-        foreach (var data in lockedLevelsData)
+    private IEnumerator ScrollToLevelCoroutine(int targetLevel)
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        RectTransform content = contentParent.GetComponent<RectTransform>();
+
+        for (int i = 0; i < contentParent.childCount; i++)
         {
-            GameObject itemGO = Instantiate(levelItemPrefab, contentParent);
-            LevelItemUI itemUI = itemGO.GetComponent<LevelItemUI>();
-            itemUI.Setup(data.levelIndex, data.title, data.score, data.isLocked, gameController);
+            LevelItemUI item = contentParent.GetChild(i).GetComponent<LevelItemUI>();
+            if (item != null && item.GetLevelIndex() == targetLevel)
+            {
+                RectTransform itemRect = item.GetComponent<RectTransform>();
+                float contentHeight = content.rect.height;
+                float viewportHeight = scrollRect.viewport.rect.height;
+
+                float itemPosY = Mathf.Abs(itemRect.anchoredPosition.y);
+                float offset = 250;
+
+                float normalizedY = (itemPosY - offset) / (contentHeight - viewportHeight);
+                float targetPos = 1f - Mathf.Clamp01(normalizedY);
+
+                DOTween.To(
+                    () => scrollRect.verticalNormalizedPosition,
+                    x => scrollRect.verticalNormalizedPosition = x,
+                    targetPos,
+                    0.4f
+                ).SetEase(Ease.OutCubic);
+
+                yield break;
+            }
         }
     }
 
-    private void ScrollToHighestUnlockedLevel()
+    public LevelItemUI GetUnlockedLevelItem()
     {
-        int highestLevelUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
-        RectTransform targetLevelItemRect = null;
+        int highestUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
 
-        foreach (Transform child in contentParent)
+        for (int i = 0; i < contentParent.childCount; i++)
         {
-            LevelItemUI itemUI = child.GetComponent<LevelItemUI>();
-            if (itemUI != null && itemUI.GetLevelIndex() == highestLevelUnlocked)
+            LevelItemUI item = contentParent.GetChild(i).GetComponent<LevelItemUI>();
+            if (item != null && item.GetLevelIndex() == highestUnlocked)
             {
-                targetLevelItemRect = child.GetComponent<RectTransform>();
-                break;
+                return item;
             }
         }
 
-        if (targetLevelItemRect != null && scrollRect != null)
-        {
-            Canvas.ForceUpdateCanvases();
-
-            RectTransform contentRect = scrollRect.content;
-            RectTransform viewportRect = scrollRect.viewport;
-
-            float targetTopRelativeToContentTop = -targetLevelItemRect.anchoredPosition.y;
-
-            float scrollableHeight = contentRect.rect.height - viewportRect.rect.height;
-
-            if (scrollableHeight <= 0)
-            {
-                scrollRect.verticalNormalizedPosition = 1f;
-                return;
-            }
-
-            float desiredScrollY = targetTopRelativeToContentTop;
-
-            desiredScrollY = Mathf.Clamp(desiredScrollY, 0, scrollableHeight);
-
-            float normalizedPosition = 1f - (desiredScrollY / scrollableHeight);
-
-            DOTween.To(() => scrollRect.verticalNormalizedPosition, x => scrollRect.verticalNormalizedPosition = x, normalizedPosition, animationDuration)
-                   .SetEase(Ease.OutCubic);
-        }
-        else if (scrollRect != null)
-        {
-            DOTween.To(() => scrollRect.verticalNormalizedPosition, x => scrollRect.verticalNormalizedPosition = x, 1f, animationDuration)
-                   .SetEase(Ease.OutCubic);
-        }
-    }
-
-    private class LevelItemData
-    {
-        public int levelIndex;
-        public string title;
-        public int score;
-        public bool isLocked;
+        return null;
     }
 }
