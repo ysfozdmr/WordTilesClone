@@ -25,7 +25,7 @@ public class SlotContainerManager : MonoBehaviour
 
     public int TotalScore => totalScore;
     public bool HasLettersInSlots => placedLettersOrder.Count > 0;
-    
+
     public bool isPlacingLetter = false;
 
     private LevelLoader levelLoader;
@@ -34,12 +34,15 @@ public class SlotContainerManager : MonoBehaviour
     [SerializeField] private WordValidator wordValidator;
 
     [SerializeField] private SubmittedWordsDisplay submittedWordsDisplay;
-    
+
     [SerializeField] private ScoreDisplay scoreDisplay;
 
-    [SerializeField] private GameController gameController; 
+    [SerializeField] private GameController gameController;
 
-    public event Action<WordValidationResult> OnWordStateChanged; 
+    public event Action<WordValidationResult> OnWordStateChanged;
+
+    [SerializeField] private AIGameAgent aiGameAgent;
+
 
     private void Awake()
     {
@@ -53,12 +56,12 @@ public class SlotContainerManager : MonoBehaviour
         {
             Debug.LogError("WordValidator atanmadı! Lütfen Inspector'dan atayın.");
         }
-        
+
         if (submittedWordsDisplay == null)
         {
             Debug.LogError("SubmittedWordsDisplay atanmadı! Lütfen Inspector'dan atayın.");
         }
-        
+
         if (gameController == null)
         {
             Debug.LogError("GameController atanmadı! Lütfen Inspector'dan atayın.");
@@ -78,13 +81,13 @@ public class SlotContainerManager : MonoBehaviour
 
     private void Start()
     {
-        UpdateWordStateForUI(); 
+        UpdateWordStateForUI();
     }
 
     public void ResetTotalScore()
     {
         totalScore = 0;
-        scoreDisplay?.UpdateScoreText(new WordValidationResult { FormedWord = "", IsValid = false, PotentialBonus = 0, Length = 0 }); 
+        scoreDisplay?.UpdateScoreText(new WordValidationResult { FormedWord = "", IsValid = false, PotentialBonus = 0, Length = 0 });
     }
 
     public void DeductScore(int amount)
@@ -138,7 +141,7 @@ public class SlotContainerManager : MonoBehaviour
             Debug.Log($"Slot {slotIndex} dolduruldu: Harf '{letter.characterTextMesh.text}' ile.");
             levelLoader?.OnLetterPlacedInSlot(letter);
             UpdateWordStateForUI();
-            
+
             isPlacingLetter = false;
         }
         else
@@ -165,7 +168,7 @@ public class SlotContainerManager : MonoBehaviour
             targetSlot.currentLetter = null;
 
             Debug.Log($"Slot {slotIndex} boşaltıldı.");
-            UpdateWordStateForUI(); 
+            UpdateWordStateForUI();
         }
         else
         {
@@ -181,7 +184,7 @@ public class SlotContainerManager : MonoBehaviour
     public void HandleLetterClickInSlot(Letter clickedLetter)
     {
         int clickedSlotIndex = -1;
-        for(int i = 0; i < allSlots.Count; i++)
+        for (int i = 0; i < allSlots.Count; i++)
         {
             if (allSlots[i].currentLetter == clickedLetter)
             {
@@ -205,7 +208,7 @@ public class SlotContainerManager : MonoBehaviour
             }
         }
 
-        foreach(Letter letter in lettersToReturn)
+        foreach (Letter letter in lettersToReturn)
         {
             placedLettersOrder.Remove(letter);
         }
@@ -220,12 +223,13 @@ public class SlotContainerManager : MonoBehaviour
             {
                 MarkSlotAsEmpty(currentSlot.transform);
             }
-            
-            letter.ReturnToOriginalPosition(originalPos, () => {
+
+            letter.ReturnToOriginalPosition(originalPos, () =>
+            {
                 levelLoader.OnLetterReturnedToOriginalPosition(letter);
             });
         }
-        UpdateWordStateForUI(); 
+        UpdateWordStateForUI();
     }
 
     public WordValidationResult CheckForWordFormation()
@@ -300,8 +304,14 @@ public class SlotContainerManager : MonoBehaviour
                     lettersInSlots.Add(allSlots[i].currentLetter);
                 }
             }
+
+            if (aiGameAgent != null)
+            {
+                aiGameAgent.OnWordSubmitted(lettersInSlots);
+            }
+
             AnimateAndDisplaySubmittedWord(lettersInSlots, result.FormedWord);
-            gameController.CheckGameEndConditions(); 
+            gameController.CheckGameEndConditions();
         }
         else
         {
@@ -327,12 +337,13 @@ public class SlotContainerManager : MonoBehaviour
         }
 
         Vector3 originalPos = levelLoader.GetLetterOriginalPosition(lastLetter.id);
-        lastLetter.ReturnToOriginalPosition(originalPos, () => {
+        lastLetter.ReturnToOriginalPosition(originalPos, () =>
+        {
             levelLoader.OnLetterReturnedToOriginalPosition(lastLetter);
         });
 
         Debug.Log($"Son harf '{lastLetter.characterTextMesh.text}' geri alındı.");
-        UpdateWordStateForUI(); 
+        UpdateWordStateForUI();
     }
 
     public void UndoAllLetters()
@@ -353,14 +364,15 @@ public class SlotContainerManager : MonoBehaviour
             {
                 MarkSlotAsEmpty(currentSlot.transform);
             }
-            
+
             Vector3 originalPos = levelLoader.GetLetterOriginalPosition(letter.id);
-            letter.ReturnToOriginalPosition(originalPos, () => {
+            letter.ReturnToOriginalPosition(originalPos, () =>
+            {
                 levelLoader.OnLetterReturnedToOriginalPosition(letter);
             });
         }
         Debug.Log("Tüm harflere geri alındı.");
-        UpdateWordStateForUI(); 
+        UpdateWordStateForUI();
     }
 
     private void AnimateAndDisplaySubmittedWord(List<Letter> letters, string word)
@@ -379,7 +391,8 @@ public class SlotContainerManager : MonoBehaviour
         float totalLetterAnimationTime = animationDuration + (letters.Count - 1) * delayBetweenLetters;
         float finalCleanupDelay = totalLetterAnimationTime + 0.1f;
 
-        DOVirtual.DelayedCall(finalCleanupDelay, () => {
+        DOVirtual.DelayedCall(finalCleanupDelay, () =>
+        {
             submittedWordsDisplay.DisplayWord(word);
             ClearSlotsAfterSubmission();
         });
@@ -390,8 +403,10 @@ public class SlotContainerManager : MonoBehaviour
             if (letter != null)
             {
                 float currentLetterDelay = i * delayBetweenLetters;
-                DOVirtual.DelayedCall(currentLetterDelay, () => {
-                    letter.MoveTo(targetCenter, animationDuration, () => {
+                DOVirtual.DelayedCall(currentLetterDelay, () =>
+                {
+                    letter.MoveTo(targetCenter, animationDuration, () =>
+                    {
                         Destroy(letter.gameObject);
                     }, 0.5f, 0.2f, 720f);
                 });

@@ -2,7 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 using TMPro;
 using System.Collections.Generic;
-using System; 
+using System;
 
 public class Letter : MonoBehaviour
 {
@@ -27,7 +27,7 @@ public class Letter : MonoBehaviour
 
     private bool isFaceUp = true;
     private bool isAnimating = false;
-    public bool isSelected; 
+    public bool isSelected;
 
     private Vector3 initialScale;
 
@@ -88,24 +88,24 @@ public class Letter : MonoBehaviour
 
         initialScale = transform.localScale;
         blockedBy = new List<int>();
-        isSelected = false; 
+        isSelected = false;
     }
 
     private void OnMouseDown()
     {
         if (!boxCollider2D.enabled || isAnimating) return;
 
-        if (isSelected) 
+        if (isSelected)
         {
             if (slotContainerManager != null)
             {
-                slotContainerManager.HandleLetterClickInSlot(this); 
+                slotContainerManager.HandleLetterClickInSlot(this);
             }
             else
             {
                 Debug.LogError("SlotContainerManager referansı Letter'a atanmadı!");
             }
-            return; 
+            return;
         }
 
         if (!isFaceUp)
@@ -135,12 +135,13 @@ public class Letter : MonoBehaviour
         Transform emptySlotTransform = slotContainerManager.GetEmptySlotTransform();
         if (emptySlotTransform != null)
         {
-          
-            slotContainerManager.isPlacingLetter = true; 
+
+            slotContainerManager.isPlacingLetter = true;
 
             if (boxCollider2D != null) boxCollider2D.enabled = false;
 
-            MoveTo(emptySlotTransform.position, 0.5f, () => {
+            MoveTo(emptySlotTransform.position, 0.5f, () =>
+            {
                 slotContainerManager.MarkSlotAsOccupied(emptySlotTransform, this);
                 isSelected = true;
                 if (boxCollider2D != null) boxCollider2D.enabled = true;
@@ -222,7 +223,7 @@ public class Letter : MonoBehaviour
         transform.rotation = Quaternion.identity;
         transform.localScale = initialScale;
     }
-    
+
     public void SetSortingOrder(int order)
     {
         if (spriteRenderer != null)
@@ -276,17 +277,18 @@ public class Letter : MonoBehaviour
         {
             isAnimating = false;
             Debug.Log("Harf hedefe ulaştı: " + targetPosition + " Süre: " + duration + "s");
-            onComplete?.Invoke(); 
+            onComplete?.Invoke();
         });
     }
 
     public void ReturnToOriginalPosition(Vector3 originalPos, Action onComplete = null)
     {
         isSelected = false;
-        if (boxCollider2D != null) boxCollider2D.enabled = false; 
-        MoveTo(originalPos, 0.5f, () => {
+        if (boxCollider2D != null) boxCollider2D.enabled = false;
+        MoveTo(originalPos, 0.5f, () =>
+        {
             onComplete?.Invoke();
-        }, jumpHeight: 1f, scaleDownFactor: 1f, rotationAmount: 0f); 
+        }, jumpHeight: 1f, scaleDownFactor: 1f, rotationAmount: 0f);
     }
 
     public void OnParentLetterTaken(int parentId)
@@ -305,12 +307,57 @@ public class Letter : MonoBehaviour
         {
             blockedBy.Add(parentId);
         }
-      
+
         if (isFaceUp)
         {
             Conceal();
             Debug.Log($"Harf {characterTextMesh.text} tekrar engellendi ve gizlendi.");
         }
     }
-    
+
+    public void AIPickUpLetter()
+    {
+        if (!isFaceUp)
+        {
+            Debug.LogWarning($"AI, kapalı harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor.");
+            return;
+        }
+
+        if (blockedBy.Count > 0)
+        {
+            Debug.LogWarning($"AI, engellenmiş harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor. Engelleyen harf sayısı: {blockedBy.Count}");
+            return;
+        }
+
+        if (isSelected)
+        {
+            Debug.LogWarning($"AI, zaten seçilmiş harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor.");
+            return;
+        }
+
+        if (isAnimating)
+        {
+            Debug.LogWarning($"AI, animasyon halindeki harf {characterTextMesh.text} (ID: {id}) üzerine tıklayamıyor.");
+            return;
+        }
+
+        if (slotContainerManager == null)
+        {
+            Debug.LogError("SlotContainerManager referansı Letter'a atanmadı!");
+            return;
+        }
+
+        if (boxCollider2D != null)
+            boxCollider2D.enabled = false;
+
+        PlaceSelfInSlot();
+
+        Debug.Log($"AI, harf {characterTextMesh.text} (ID: {id}) üzerine başarıyla tıkladı.");
+    }
+
+    public bool IsFaceUp()
+    {
+        return isFaceUp;
+    }
+
 }

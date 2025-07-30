@@ -78,7 +78,7 @@ public class LevelLoader : MonoBehaviour
                 spawnedLetters.Add(letterComponent.id, letterComponent);
                 originalLetterPositions.Add(letterComponent.id, letterComponent.transform.position);
 
-                letterComponent.SetState(false); //
+                letterComponent.SetState(false); 
             }
         }
 
@@ -238,5 +238,10 @@ public class LevelLoader : MonoBehaviour
             }
         }
         returnedLetter.SetState(returnedLetter.blockedBy.Count == 0);
+    }
+
+    public Dictionary<int, Letter> GetAllSpawnedLetters()
+    {
+        return spawnedLetters;
     }
 }

@@ -20,6 +20,9 @@ public class GameController : MonoBehaviour
 
     [SerializeField] private MainMenu mainMenu;
 
+    [SerializeField] private AIGameAgent aiGameAgent;
+
+
     private void Awake()
     {
         if (levelLoader == null) Debug.LogError("LevelLoader atanmadı!");
@@ -27,8 +30,9 @@ public class GameController : MonoBehaviour
         if (wordValidator == null) Debug.LogError("WordValidator atanmadı!");
         if (gameOverPanel == null) Debug.LogError("GameOverPanel atanmadı!");
         if (submitButton == null) Debug.LogError("SubmitButton atanmadı!");
+        if (aiGameAgent == null) Debug.LogError("AIGameAgent atanmadı!");
 
-    
+
         slotContainerManager.OnWordStateChanged += UpdateSubmitButtonState; 
 
 
@@ -139,7 +143,6 @@ public class GameController : MonoBehaviour
         int highestLevelUnlocked = PlayerPrefs.GetInt("HighestLevelUnlocked", 1);
         if (currentLevel >= highestLevelUnlocked)
         {
-            // Bir sonraki seviyenin var olup olmadığını kontrol et
             TextAsset nextLevelFile = Resources.Load<TextAsset>($"level_{currentLevel + 1}");
             if (nextLevelFile != null)
             {
@@ -200,6 +203,32 @@ public class GameController : MonoBehaviour
     public void HideGameMenu()
     {
         gameMenu.HideMenu();
+    }
+
+    public GameOverPanel GetGameOverPanel()
+    {
+        return gameOverPanel;
+    }
+
+    public void OnAIPlayButtonClicked()
+    {
+        if (aiGameAgent != null)
+        {
+            aiGameAgent.StartAIGame();
+        }
+        else
+        {
+            Debug.LogError("AIGameAgent referansı bulunamadı!");
+        }
+    }
+
+    
+    public void OnStopAIButtonClicked()
+    {
+        if (aiGameAgent != null)
+        {
+            aiGameAgent.StopAIGame();
+        }
     }
 
     [System.Serializable]
