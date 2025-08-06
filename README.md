@@ -1,4 +1,4 @@
-# GulliversGamesCase
+# Word Tiles Clone
 
 ## Architecture & Design Reasoning
 
